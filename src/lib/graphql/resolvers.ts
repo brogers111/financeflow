@@ -282,7 +282,7 @@ export const resolvers = {
   },
 
   Mutation: {
-    // Create account - matches your schema exactly
+    // Create account
     createAccount: async (_parent: unknown, { input }: { input: AccountInput }) => {
       return prisma.account.create({
         data: {
@@ -324,7 +324,7 @@ export const resolvers = {
       return true;
     },
 
-    // Create transaction - matches your schema
+    // Create transaction
     createTransaction: async (_parent: unknown, { input }: { input: TransactionInput }) => {
       const transaction = await prisma.transaction.create({
         data: {
@@ -432,7 +432,7 @@ export const resolvers = {
       return transaction;
     },
 
-    // Create category - matches your schema (no userId needed)
+    // Create category
     createCategory: async (_parent: unknown, { input }: { input: CategoryInput }) => {
       return prisma.category.create({
         data: {
@@ -451,7 +451,7 @@ export const resolvers = {
       });
     },
 
-    // Record paycheck - matches your schema (no userId in Paycheck model)
+    // Record paycheck
     recordPaycheck: async (_parent: unknown, { input }: { input: PaycheckInput }) => {
       const paycheck = await prisma.paycheck.create({
         data: {
@@ -487,7 +487,7 @@ export const resolvers = {
       return paycheck;
     },
 
-    // Upload statement - full implementation
+    // Upload statement
     uploadStatement: async (
       _parent: unknown, 
       { fileContent, accountId, institution }: { fileContent: string; accountId: string; institution: 'CHASE' | 'CAPITAL_ONE' }
