@@ -490,37 +490,89 @@ export const resolvers = {
     // Upload statement
     uploadStatement: async (
       _parent: unknown, 
-      { fileContent, accountId, institution }: { fileContent: string; accountId: string; institution: 'CHASE' | 'CAPITAL_ONE' }
+      { fileContent, accountId, statementType }: { 
+        fileContent: string; 
+        accountId: string; 
+        statementType: 'CHASE_CREDIT' | 'CHASE_CHECKING' | 'CHASE_PERSONAL_SAVINGS' | 'CHASE_BUSINESS_SAVINGS' | 'CAPITAL_ONE_SAVINGS';
+      }
     ) => {
       try {
-        const { parseChaseStatement, parseCapitalOneStatement } = await import('@/lib/parsers/statementParser');
+        // Import all parsers
+        const { 
+          parseChaseCreditCard, 
+          parseChaseChecking,
+          parseChasePersonalSavings,
+          parseChaseBusinessSavings,
+          parseCapitalOneSavings
+        } = await import('@/lib/parsers');
         
-        const transactions = institution === 'CHASE' 
-          ? await parseChaseStatement(fileContent)
-          : await parseCapitalOneStatement(fileContent);
-
+        // Convert base64 string to Buffer
+        const buffer = Buffer.from(fileContent, 'base64');
+        
+        // Select the correct parser based on statement type
+        let transactions;
+        switch (statementType) {
+          case 'CHASE_CREDIT':
+            transactions = await parseChaseCreditCard(buffer);
+            break;
+            
+          case 'CHASE_CHECKING':
+            transactions = await parseChaseChecking(buffer);
+            break;
+            
+          case 'CHASE_PERSONAL_SAVINGS':
+            transactions = await parseChasePersonalSavings(buffer);
+            break;
+            
+          case 'CHASE_BUSINESS_SAVINGS':
+            transactions = await parseChaseBusinessSavings(buffer);
+            break;
+            
+          case 'CAPITAL_ONE_SAVINGS':
+            transactions = await parseCapitalOneSavings(buffer);
+            break;
+            
+          default:
+            throw new Error(`Unknown statement type: ${statementType}`);
+        }
+        
+        // Get existing categorization patterns
         const patterns = await prisma.categorizationPattern.findMany({
           orderBy: { confidence: 'desc' }
         });
 
-        const needsCategorization: any[] = [];
+        const needsCategorization: Array<{
+          id: string;
+          description: string;
+          amount: number;
+          date: Date;
+        }> = [];
+        
         let transactionsCreated = 0;
 
+        // Process each transaction
         for (const txn of transactions) {
+          // Check if we have a learned pattern for this description
           const matchingPattern = patterns.find(p => 
             txn.description.toUpperCase().includes(p.descriptionPattern)
           );
 
+          // Determine the correct amount and type for Prisma
+          // Our parsers return positive amounts with a type field
+          // Prisma expects: negative for expenses, positive for income
+          const prismaAmount = txn.type === 'EXPENSE' ? -txn.amount : txn.amount;
+          const prismaType = txn.type === 'EXPENSE' ? TransactionType.EXPENSE : TransactionType.INCOME;
+
           if (matchingPattern && matchingPattern.confidence > 0.7) {
-            // Auto-categorize
+            // Auto-categorize based on learned pattern
             await prisma.transaction.create({
               data: {
-                date: new Date(txn.date),
+                date: txn.date,
                 description: txn.description,
-                amount: txn.amount,
-                type: txn.amount < 0 ? TransactionType.EXPENSE : TransactionType.INCOME,
+                amount: prismaAmount,
+                type: prismaType,
                 categoryId: matchingPattern.categoryId,
-                source: institution,
+                source: statementType,
                 wasManual: false,
                 rawDescription: txn.description,
                 account: {
@@ -529,6 +581,7 @@ export const resolvers = {
               }
             });
 
+            // Update pattern usage
             await prisma.categorizationPattern.update({
               where: { id: matchingPattern.id },
               data: {
@@ -539,14 +592,14 @@ export const resolvers = {
 
             transactionsCreated++;
           } else {
-            // Create uncategorized
+            // Create uncategorized transaction
             const uncategorized = await prisma.transaction.create({
               data: {
-                date: new Date(txn.date),
+                date: txn.date,
                 description: txn.description,
-                amount: txn.amount,
-                type: txn.amount < 0 ? TransactionType.EXPENSE : TransactionType.INCOME,
-                source: institution,
+                amount: prismaAmount,
+                type: prismaType,
+                source: statementType,
                 wasManual: false,
                 rawDescription: txn.description,
                 account: {
@@ -560,7 +613,10 @@ export const resolvers = {
         }
 
         // Update account balance
-        const totalChange = transactions.reduce((sum, t) => sum + t.amount, 0);
+        const totalChange = transactions.reduce((sum, t) => {
+          return sum + (t.type === 'EXPENSE' ? -t.amount : t.amount);
+        }, 0);
+        
         await prisma.account.update({
           where: { id: accountId },
           data: {

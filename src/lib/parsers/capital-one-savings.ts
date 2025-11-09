@@ -46,8 +46,6 @@ export async function parseCapitalOneSavings(buffer: Buffer): Promise<ParsedTran
     const amount = parseFloat(amountStr.replace(/,/g, ''));
     
     // Determine type based on category and sign
-    // Credit with + = deposit (INCOME)
-    // Debit with - = withdrawal (EXPENSE)
     const type: 'INCOME' | 'EXPENSE' = category === 'Credit' || sign === '+' ? 'INCOME' : 'EXPENSE';
     
     // Clean description

@@ -41,6 +41,15 @@ export const typeDefs = gql`
     TRANSFER
   }
 
+  # NEW: Statement type enum for upload
+  enum StatementType {
+    CHASE_CREDIT
+    CHASE_CHECKING
+    CHASE_PERSONAL_SAVINGS
+    CHASE_BUSINESS_SAVINGS
+    CAPITAL_ONE_SAVINGS
+  }
+
   type Category {
     id: ID!
     name: String!
@@ -151,7 +160,11 @@ export const typeDefs = gql`
     categorizeTransaction(id: ID!, categoryId: ID!): Transaction!
     
     # Bulk operations
-    uploadStatement(file: Upload!, accountId: ID!): UploadResult!
+    uploadStatement(
+      fileContent: String!
+      accountId: ID!
+      statementType: StatementType!
+    ): UploadResult!
     
     # Category management
     createCategory(input: CreateCategoryInput!): Category!

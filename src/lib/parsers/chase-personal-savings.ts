@@ -6,7 +6,6 @@ import { ParsedTransaction } from './types';
  * Parses Chase Personal Savings Account statements
  * Works for: Operational Savings, Emergency Savings, or any Chase Savings
  * Format: Date | Description | Amount | Balance
- * Example: "10/02 Interest Payment 0.03 3,000.03"
 */
 export async function parseChasePersonalSavings(buffer: Buffer): Promise<ParsedTransaction[]> {
   const data = await pdf(buffer);
@@ -23,8 +22,6 @@ export async function parseChasePersonalSavings(buffer: Buffer): Promise<ParsedT
   const detailSection = detailMatch[1];
   
   // Personal savings format: "MM/DD DESCRIPTION AMOUNT BALANCE"
-  // Example: "10/02 Interest Payment 0.03 3,000.03"
-  // Example: "10/01 Online Transfer From Chk ...9999 Transaction#: 69000000000 100.00 3,000.00"
   const transactionRegex = /(\d{2}\/\d{2})\s+(.+?)\s+([-]?[\d,]+\.\d{2})\s+([-]?[\d,]+\.\d{2})/gm;
   
   // Extract year from statement period

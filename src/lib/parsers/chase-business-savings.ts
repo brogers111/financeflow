@@ -5,7 +5,6 @@ import { ParsedTransaction } from './types';
 /**
  * Parses Chase Business Savings Account statements
  * Format: Date | Description | Number | Amount | Balance
- * Example: "10/01 Remote Online Deposit 1 10,000.00 15,000.00"
  */
 export async function parseChaseBusinessSavings(buffer: Buffer): Promise<ParsedTransaction[]> {
   const data = await pdf(buffer);
