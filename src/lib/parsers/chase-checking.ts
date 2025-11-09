@@ -1,5 +1,3 @@
-// @ts-expect-error - pdf-parse doesn't have proper TypeScript types
-import pdf from 'pdf-parse';
 import { ParsedTransaction } from './types';
 
 /**
@@ -9,7 +7,9 @@ import { ParsedTransaction } from './types';
  * Example: "05/30 Amsive LLC Payroll PPD ID: 6506940773 1,213.49 2,228.68"
  */
 export async function parseChaseChecking(buffer: Buffer): Promise<ParsedTransaction[]> {
-  const data = await pdf(buffer);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfParse = (await import('pdf-parse')) as any;
+  const data = await pdfParse(buffer);
   const text = data.text;
   
   const transactions: ParsedTransaction[] = [];

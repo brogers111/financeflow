@@ -1,4 +1,4 @@
-import { PrismaClient, AccountType, TransactionType, Prisma } from '@prisma/client';
+import { PrismaClient, AccountType, TransactionType, Category, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -165,14 +165,14 @@ export const resolvers = {
 
       const netChange = income - expenses;
 
-      const byCategory: Record<string, { category: any; total: number }> = {};
+      const byCategory: Record<string, { category: Category; total: number }> = {};
       
       transactions
         .filter(t => t.type === TransactionType.EXPENSE && t.category)
         .forEach(t => {
           const catId = t.categoryId!;
           if (!byCategory[catId]) {
-            byCategory[catId] = { category: t.category, total: 0 };
+            byCategory[catId] = { category: t.category!, total: 0 };
           }
           byCategory[catId].total += Math.abs(t.amount);
         });
@@ -547,7 +547,7 @@ export const resolvers = {
           amount: number;
           date: Date;
         }> = [];
-        
+
         let transactionsCreated = 0;
 
         // Process each transaction
@@ -575,9 +575,7 @@ export const resolvers = {
                 source: statementType,
                 wasManual: false,
                 rawDescription: txn.description,
-                account: {
-                  connect: { id: accountId }
-                }
+                accountId: accountId
               }
             });
 

@@ -1,5 +1,3 @@
-// @ts-expect-error - pdf-parse doesn't have proper TypeScript types
-import pdf from 'pdf-parse';
 import { ParsedTransaction } from './types';
 
 /**
@@ -7,7 +5,9 @@ import { ParsedTransaction } from './types';
  * Format: Date | Description | Category | Amount | Balance
  */
 export async function parseCapitalOneSavings(buffer: Buffer): Promise<ParsedTransaction[]> {
-  const data = await pdf(buffer);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfParse = (await import('pdf-parse')) as any;
+  const data = await pdfParse(buffer);
   const text = data.text;
   
   const transactions: ParsedTransaction[] = [];

@@ -8,7 +8,6 @@ export const metadata = {
   title: 'FinanceFlow',
   description: 'Personal finance tracker',
   manifest: '/manifest.json',
-  themeColor: '#4F46E5',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
