@@ -178,6 +178,7 @@ export const typeDefs = gql`
     type: AccountType!
     institution: String!
     balance: Float!
+    userId: ID!
   }
 
   input UpdateAccountInput {

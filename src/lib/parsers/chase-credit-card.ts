@@ -8,7 +8,7 @@ export async function parseChaseCreditCard(buffer: Buffer): Promise<ParsedTransa
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfParse = (await import('pdf-parse')) as any;
   const data = await pdfParse(buffer);
-  const text = data.text;
+    const text = data.text;
   
   const transactions: ParsedTransaction[] = [];
   
