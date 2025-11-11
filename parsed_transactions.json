@@ -1,0 +1,47 @@
+[
+  {
+    "date": "09/25/2025",
+    "description": "Zelle Payment From Samantha Scroggins 263483455851",
+    "amount": -262.86,
+    "balance": 690.48,
+    "confidence": 1,
+    "type": "INCOME",
+    "rawDescription": "Zelle Payment From Samantha Scroggins 263483455851"
+  },
+  {
+    "date": "10/01/2025",
+    "description": "Payroll - Chase Card Ending IN 7192-400.00",
+    "amount": -38.24000000000001,
+    "balance": 652.24,
+    "confidence": 1,
+    "type": "INCOME",
+    "rawDescription": "Payroll - Chase Card Ending IN 7192-400.00"
+  },
+  {
+    "date": "10/01/2025",
+    "description": "Planet Fitness C Iclub Fees - PPD ID: G710602737-41.732",
+    "amount": -41.73000000000002,
+    "balance": 610.51,
+    "confidence": 1,
+    "type": "EXPENSE",
+    "rawDescription": "Planet Fitness C Iclub Fees - PPD ID: G710602737-41.732"
+  },
+  {
+    "date": "10/01/2025",
+    "description": "Online Transfer To Sav ... Transaction#: 26019506320 - $1,000.00",
+    "amount": 101,
+    "balance": 711.51,
+    "confidence": 1,
+    "type": "TRANSFER",
+    "rawDescription": "Online Transfer To Sav ... Transaction#: 26019506320 - $1,000.00"
+  },
+  {
+    "date": "10/02/2025",
+    "description": "Priderock-1840Op Web Pmts - SMSM",
+    "amount": -360,
+    "balance": 351.51,
+    "confidence": 1,
+    "type": "EXPENSE",
+    "rawDescription": "Priderock-1840Op Web Pmts - SMSM"
+  }
+]

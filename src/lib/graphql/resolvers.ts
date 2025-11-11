@@ -1,6 +1,44 @@
 import { PrismaClient, AccountType, TransactionType, Category, Prisma } from '@prisma/client';
+import { Ollama } from 'ollama';
+const ollama = new Ollama({ host: 'http://localhost:11434' });
 
 const prisma = new PrismaClient();
+
+async function parseStatementWithOllama(
+  buffer: Buffer,
+  statementType: string
+): Promise<Array<{ date: Date | string; description: string; amount: number; type?: string }>> {
+// @ts-expect-error: no types for pdf-parse 1.1.1
+  const pdfParse = await import('pdf-parse');
+  const pdf = pdfParse.default || pdfParse;
+  const data = await pdf(buffer);
+  const text = data.text || '';
+
+  // Build prompt for Ollama - include statementType so the model knows which format to expect.
+  const prompt = `Parse this ${statementType} bank statement. Return JSON array of transactions.
+Format: [{"date":"YYYY-MM-DD","description":"text","amount":number,"type":"INCOME"|"EXPENSE"(optional)}]
+
+${text}`;
+
+  // Call Ollama
+  const response = await ollama.generate({
+    model: 'phi3',
+    prompt: prompt,
+    format: 'json',
+    options: { temperature: 0.1 }
+  });
+
+  // Ollama returns a string in response.response — parse it
+  const parsed = JSON.parse(response.response);
+
+  // Map to a safe shape — allow 'date' to be returned as string or Date
+  return parsed.map((t: any) => ({
+    date: t.date,
+    description: t.description,
+    amount: typeof t.amount === 'number' ? t.amount : Number(t.amount),
+    type: t.type // optional
+  }));
+}
 
 interface AccountInput {
   name: string;
@@ -497,45 +535,6 @@ export const resolvers = {
       }
     ) => {
       try {
-        // Import all parsers
-        const { 
-          parseChaseCreditCard, 
-          parseChaseChecking,
-          parseChasePersonalSavings,
-          parseChaseBusinessSavings,
-          parseCapitalOneSavings
-        } = await import('@/lib/parsers');
-        
-        // Convert base64 string to Buffer
-        const buffer = Buffer.from(fileContent, 'base64');
-        
-        // Select the correct parser based on statement type
-        let transactions;
-        switch (statementType) {
-          case 'CHASE_CREDIT':
-            transactions = await parseChaseCreditCard(buffer);
-            break;
-            
-          case 'CHASE_CHECKING':
-            transactions = await parseChaseChecking(buffer);
-            break;
-            
-          case 'CHASE_PERSONAL_SAVINGS':
-            transactions = await parseChasePersonalSavings(buffer);
-            break;
-            
-          case 'CHASE_BUSINESS_SAVINGS':
-            transactions = await parseChaseBusinessSavings(buffer);
-            break;
-            
-          case 'CAPITAL_ONE_SAVINGS':
-            transactions = await parseCapitalOneSavings(buffer);
-            break;
-            
-          default:
-            throw new Error(`Unknown statement type: ${statementType}`);
-        }
-        
         // Get existing categorization patterns
         const patterns = await prisma.categorizationPattern.findMany({
           orderBy: { confidence: 'desc' }
@@ -549,6 +548,14 @@ export const resolvers = {
         }> = [];
 
         let transactionsCreated = 0;
+
+        // Convert base64 PDF to buffer
+        const buffer = Buffer.from(fileContent, 'base64');
+
+        // Parse transactions using Ollama + pdf-parse
+        const transactions = await parseStatementWithOllama(buffer, statementType);
+
+        console.log(`✅ Parsed ${transactions.length} transactions via Ollama`);
 
         // Process each transaction
         for (const txn of transactions) {
