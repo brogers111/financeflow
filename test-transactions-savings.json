@@ -1,0 +1,9 @@
+[
+  {
+    "date": "2025-10-06T06:00:00.000Z",
+    "description": "Interest Payment",
+    "amount": 0.03,
+    "balance": 3854.7,
+    "type": "INCOME"
+  }
+]

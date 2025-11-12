@@ -1,0 +1,170 @@
+[
+  {
+    "date": "2025-09-05T06:00:00.000Z",
+    "description": "KICKIN CHICKEN LAKEWOOD CO",
+    "amount": 33.99,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-06T06:00:00.000Z",
+    "description": "WHOLEFDS BMR 10218 LAKEWOOD CO",
+    "amount": 11.29,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-07T06:00:00.000Z",
+    "description": "COSTCO GAS #0676 ARVADA CO",
+    "amount": 43.66,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-09T06:00:00.000Z",
+    "description": "DAIRY QUEEN #14473 LAKEWOOD CO",
+    "amount": 12.02,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-10T06:00:00.000Z",
+    "description": "MCDONALD'S F34751 LAKEWOOD CO",
+    "amount": 5.78,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-12T06:00:00.000Z",
+    "description": "DOMINO'S 6249 LAKEWOOD CO",
+    "amount": 21.48,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-13T06:00:00.000Z",
+    "description": "TST*CLUCK CHICKEN Denver CO",
+    "amount": 34.13,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-14T06:00:00.000Z",
+    "description": "AMAZON MKTPL*DX9VQ4VY3 Amzn.com/bill WA",
+    "amount": 22.53,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-13T06:00:00.000Z",
+    "description": "STADIUM INN DENVER CO",
+    "amount": 12.69,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-16T06:00:00.000Z",
+    "description": "CLAUDE.AI SUBSCRIPTION ANTHROPIC.COM CA",
+    "amount": 20.6,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-16T06:00:00.000Z",
+    "description": "WAL-MART #4284 LAKEWOOD CO",
+    "amount": 24.75,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-17T06:00:00.000Z",
+    "description": "Spotify USA 877-7781161 NY",
+    "amount": 12.94,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-17T06:00:00.000Z",
+    "description": "UEP*KING BUFFET ARVADA CO",
+    "amount": 52.12,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-17T06:00:00.000Z",
+    "description": "UNITED 0162332826955 UNITED.COM TX",
+    "amount": 188.79,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-17T06:00:00.000Z",
+    "description": "UNITED 0162332826956 UNITED.COM TX",
+    "amount": 188.79,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-20T06:00:00.000Z",
+    "description": "COSTCO WHSE #0676 ARVADA CO",
+    "amount": 191.95,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-20T06:00:00.000Z",
+    "description": "COSTCO GAS #0676 ARVADA CO",
+    "amount": 32.91,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-21T06:00:00.000Z",
+    "description": "AMAZON MKTPL*QE5UT2HJ3 Amzn.com/bill WA",
+    "amount": 48.64,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-20T06:00:00.000Z",
+    "description": "APPLE.COM/BILL 866-712-7753 CA",
+    "amount": 0.99,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-21T06:00:00.000Z",
+    "description": "VISTAPRINT 866-207-4955 MA",
+    "amount": 30.22,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-22T06:00:00.000Z",
+    "description": "5605 CARRABA'S LAKEWOO LAKEWOOD CO",
+    "amount": 65.05,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-23T06:00:00.000Z",
+    "description": "Microsoft*Xbox Game Pass 425-6816830 WA",
+    "amount": 74.99,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-24T06:00:00.000Z",
+    "description": "Amazon.com*Y61XH3173 Amzn.com/bill WA",
+    "amount": 17.63,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-26T06:00:00.000Z",
+    "description": "WHOLEFDS CFX 10350 LAKEWOOD CO",
+    "amount": 22.44,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-27T06:00:00.000Z",
+    "description": "SAFEWAY FUEL0041 LAKEWOOD CO",
+    "amount": 18.16,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-29T06:00:00.000Z",
+    "description": "KING SOOPERS #0040 LAKEWOOD CO",
+    "amount": 18.86,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-09-30T06:00:00.000Z",
+    "description": "WINCHELLS DONUT WHEAT RIDGE CO",
+    "amount": 27.56,
+    "type": "EXPENSE"
+  },
+  {
+    "date": "2025-10-02T06:00:00.000Z",
+    "description": "Amazon.com*NJ4UP7BK2 Amzn.com/bill WA",
+    "amount": 9.97,
+    "type": "EXPENSE"
+  }
+]
