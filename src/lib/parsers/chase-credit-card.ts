@@ -99,16 +99,9 @@ function parseTransactions(text: string): ParsedTransaction[] {
 
     if (isNaN(amount)) continue;
 
-    const descUpper = description.toUpperCase();
-
     // Skip payments and credits (negative amounts on credit cards)
     // These are already tracked in the checking account statement
     if (amount < 0) {
-      continue;
-    }
-
-    // Skip annual fees (not really an expense you want to track separately)
-    if (descUpper.includes('ANNUAL MEMBERSHIP FEE')) {
       continue;
     }
 

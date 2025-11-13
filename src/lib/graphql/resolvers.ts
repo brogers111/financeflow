@@ -1,44 +1,7 @@
 import { PrismaClient, AccountType, TransactionType, Category, Prisma } from '@prisma/client';
-import { Ollama } from 'ollama';
-const ollama = new Ollama({ host: 'http://localhost:11434' });
+import { parseStatement, AccountType as ParserAccountType } from '@/lib/parsers/router';
 
 const prisma = new PrismaClient();
-
-async function parseStatementWithOllama(
-  buffer: Buffer,
-  statementType: string
-): Promise<Array<{ date: Date | string; description: string; amount: number; type?: string }>> {
-// @ts-expect-error: no types for pdf-parse 1.1.1
-  const pdfParse = await import('pdf-parse');
-  const pdf = pdfParse.default || pdfParse;
-  const data = await pdf(buffer);
-  const text = data.text || '';
-
-  // Build prompt for Ollama - include statementType so the model knows which format to expect.
-  const prompt = `Parse this ${statementType} bank statement. Return JSON array of transactions.
-Format: [{"date":"YYYY-MM-DD","description":"text","amount":number,"type":"INCOME"|"EXPENSE"(optional)}]
-
-${text}`;
-
-  // Call Ollama
-  const response = await ollama.generate({
-    model: 'phi3',
-    prompt: prompt,
-    format: 'json',
-    options: { temperature: 0.1 }
-  });
-
-  // Ollama returns a string in response.response — parse it
-  const parsed = JSON.parse(response.response);
-
-  // Map to a safe shape — allow 'date' to be returned as string or Date
-  return parsed.map((t: any) => ({
-    date: t.date,
-    description: t.description,
-    amount: typeof t.amount === 'number' ? t.amount : Number(t.amount),
-    type: t.type // optional
-  }));
-}
 
 interface AccountInput {
   name: string;
@@ -535,7 +498,7 @@ export const resolvers = {
       }
     ) => {
       try {
-        // Get existing categorization patterns
+        // Get existing categorization patterns for learning
         const patterns = await prisma.categorizationPattern.findMany({
           orderBy: { confidence: 'desc' }
         });
@@ -552,10 +515,21 @@ export const resolvers = {
         // Convert base64 PDF to buffer
         const buffer = Buffer.from(fileContent, 'base64');
 
-        // Parse transactions using Ollama + pdf-parse
-        const transactions = await parseStatementWithOllama(buffer, statementType);
+        // Map GraphQL enum to parser enum
+        const parserTypeMap: Record<string, ParserAccountType> = {
+          'CHASE_CHECKING': 'CHASE_CHECKING',
+          'CHASE_PERSONAL_SAVINGS': 'CHASE_SAVINGS',
+          'CHASE_CREDIT': 'CHASE_CREDIT',
+          'CHASE_BUSINESS_SAVINGS': 'CHASE_BUSINESS_SAVINGS',
+          'CAPITAL_ONE_SAVINGS': 'CAPITAL_ONE_SAVINGS'
+        };
 
-        console.log(`✅ Parsed ${transactions.length} transactions via Ollama`);
+        const parserType = parserTypeMap[statementType];
+        
+        // Parse transactions using your new parsers
+        const transactions = await parseStatement(buffer, parserType);
+
+        console.log(`✅ Parsed ${transactions.length} transactions from ${statementType}`);
 
         // Process each transaction
         for (const txn of transactions) {
@@ -564,11 +538,11 @@ export const resolvers = {
             txn.description.toUpperCase().includes(p.descriptionPattern)
           );
 
-          // Determine the correct amount and type for Prisma
-          // Our parsers return positive amounts with a type field
-          // Prisma expects: negative for expenses, positive for income
-          const prismaAmount = txn.type === 'EXPENSE' ? -txn.amount : txn.amount;
-          const prismaType = txn.type === 'EXPENSE' ? TransactionType.EXPENSE : TransactionType.INCOME;
+          // Determine Prisma type and amount
+          // Parsers return: INCOME/EXPENSE/TRANSFER with signed amounts
+          // Expenses are already negative, income is positive
+          const prismaType = txn.type as TransactionType;
+          const prismaAmount = txn.amount;
 
           if (matchingPattern && matchingPattern.confidence > 0.7) {
             // Auto-categorize based on learned pattern
@@ -618,9 +592,7 @@ export const resolvers = {
         }
 
         // Update account balance
-        const totalChange = transactions.reduce((sum, t) => {
-          return sum + (t.type === 'EXPENSE' ? -t.amount : t.amount);
-        }, 0);
+        const totalChange = transactions.reduce((sum, t) => sum + t.amount, 0);
         
         await prisma.account.update({
           where: { id: accountId },
@@ -644,6 +616,59 @@ export const resolvers = {
         console.error('Statement upload error:', error);
         throw new Error(`Failed to process statement: ${error}`);
       }
+    },
+
+    categorizeTransactionsWithAI: async (
+      _parent: unknown,
+      { transactionIds }: { transactionIds: string[] }
+    ) => {
+      const { categorizeBatch } = await import('@/lib/ollama');
+      
+      const transactions = await prisma.transaction.findMany({
+        where: { id: { in: transactionIds } }
+      });
+
+      const results = await categorizeBatch(
+        transactions.map(t => ({ description: t.description, amount: t.amount }))
+      );
+
+      let categorized = 0;
+
+      for (let i = 0; i < transactions.length; i++) {
+        const result = results[i];
+        if (result.categoryId && result.confidence > 0.6) {
+          await prisma.transaction.update({
+            where: { id: transactions[i].id },
+            data: { 
+              categoryId: result.categoryId,
+              confidence: result.confidence
+            }
+          });
+
+          // Learn from this categorization
+          await prisma.categorizationPattern.upsert({
+            where: { descriptionPattern: transactions[i].description.toUpperCase() },
+            update: {
+              timesUsed: { increment: 1 },
+              lastUsed: new Date()
+            },
+            create: {
+              descriptionPattern: transactions[i].description.toUpperCase(),
+              categoryId: result.categoryId,
+              confidence: result.confidence,
+              timesUsed: 1
+            }
+          });
+
+          categorized++;
+        }
+      }
+
+      return {
+        success: true,
+        categorized,
+        total: transactions.length
+      };
     }
   }
 };

@@ -10,6 +10,10 @@ interface CategorizationResult {
   reasoning?: string;
 }
 
+/**
+ * Categorize a single transaction using Ollama AI
+ * First checks learned patterns, then uses AI if needed
+ */
 export async function categorizeWithOllama(
   description: string,
   amount: number
@@ -28,12 +32,16 @@ export async function categorizeWithOllama(
     };
   }
   
-  // Get all categories for context
+  // Get all categories for the transaction type
   const categories = await prisma.category.findMany({
     where: { type: amount < 0 ? 'EXPENSE' : 'INCOME' }
   });
   
-  const categoryList = categories.map(c => `${c.name} (${c.id})`).join(', ');
+  if (categories.length === 0) {
+    return { categoryId: null, confidence: 0, reasoning: 'No categories available' };
+  }
+  
+  const categoryList = categories.map(c => `${c.name} (ID: ${c.id})`).join(', ');
   
   const prompt = `You are a financial transaction categorizer. Given a transaction description and amount, determine the most appropriate category.
 
@@ -43,10 +51,10 @@ Type: ${amount < 0 ? 'EXPENSE' : 'INCOME'}
 
 Available categories: ${categoryList}
 
-Respond in JSON format:
+Respond in JSON format ONLY:
 {
-  "category_id": "uuid-of-category",
-  "confidence": 0.0-1.0,
+  "category_id": "uuid-of-best-matching-category",
+  "confidence": 0.85,
   "reasoning": "brief explanation"
 }
 
@@ -73,7 +81,7 @@ If you cannot confidently categorize (confidence < 0.6), set category_id to null
     const result = JSON.parse(data.response);
     
     return {
-      categoryId: result.category_id,
+      categoryId: result.category_id || null,
       confidence: result.confidence || 0,
       reasoning: result.reasoning
     };
@@ -84,10 +92,13 @@ If you cannot confidently categorize (confidence < 0.6), set category_id to null
   }
 }
 
+/**
+ * Categorize multiple transactions in batches
+ * Limits concurrency to avoid overwhelming Ollama
+ */
 export async function categorizeBatch(
   transactions: Array<{ description: string; amount: number }>
 ): Promise<CategorizationResult[]> {
-  // Categorize in parallel with a concurrency limit
   const BATCH_SIZE = 5;
   const results: CategorizationResult[] = [];
   
@@ -98,6 +109,5 @@ export async function categorizeBatch(
     );
     results.push(...batchResults);
   }
-  
   return results;
 }

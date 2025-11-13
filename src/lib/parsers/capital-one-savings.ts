@@ -1,15 +1,26 @@
 import { ParsedTransaction } from './types';
 
-/*
+interface TextItem {
+  str: string;
+  transform: number[];
+}
+
+/**
  * Parses Capital One Savings Account statements
- * - Date | Description | Amount | Balance
+ * Format: DATE | DESCRIPTION | CATEGORY | AMOUNT | BALANCE
  */
 export async function parseCapitalOneSavings(buffer: Buffer): Promise<ParsedTransaction[]> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
   
   const data = new Uint8Array(buffer);
-  const loadingTask = pdfjsLib.getDocument({ data });
+  
+  const loadingTask = pdfjsLib.getDocument({
+    data,
+    verbosity: 0,
+    standardFontDataUrl: null,
+  });
+  
   const pdfDoc = await loadingTask.promise;
 
   let fullText = '';
@@ -20,7 +31,7 @@ export async function parseCapitalOneSavings(buffer: Buffer): Promise<ParsedTran
 
     const rows: { [key: number]: Array<{ text: string; x: number }> } = {};
 
-    textContent.items.forEach((item: any) => {
+    textContent.items.forEach((item: TextItem) => {
       const y = Math.round(item.transform[5]);
       if (!rows[y]) rows[y] = [];
       rows[y].push({
@@ -46,47 +57,128 @@ export async function parseCapitalOneSavings(buffer: Buffer): Promise<ParsedTran
 function parseTransactions(text: string): ParsedTransaction[] {
   const transactions: ParsedTransaction[] = [];
 
-  // TODO: Adjust these patterns based on your actual Capital One statement
-  // Extract year from statement (format may vary)
-  const periodMatch = text.match(/(\w+)\s+\d+,\s+(\d{4})/i);
-  const year = periodMatch ? parseInt(periodMatch[2]) : new Date().getFullYear();
+  const periodMatch = text.match(/Oct 1 - Oct 31, (\d{4})/i) || 
+                      text.match(/(\d{4})/);
+  const year = periodMatch ? parseInt(periodMatch[1]) : new Date().getFullYear();
 
   const lines = text.split('\n');
 
-  for (const line of lines) {
-    // Capital One date format - adjust if needed (e.g., "MM/DD/YYYY" or "MM/DD")
-    if (!line.match(/^\d{2}\/\d{2}/)) continue;
+  const monthMap: { [key: string]: number } = {
+    'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+    'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+  };
 
-    const dateMatch = line.match(/^(\d{2})\/(\d{2})(?:\/(\d{4}))?/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    // Match date at start - but must have day number
+    const dateMatch = line.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})\s+/);
     if (!dateMatch) continue;
 
-    const [, month, day, fullYear] = dateMatch;
-    const date = new Date(fullYear ? parseInt(fullYear) : year, parseInt(month) - 1, parseInt(day));
+    // Skip date range lines like "Oct 1 - Oct 31, 2025"
+    if (line.match(/\s+-\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/)) continue;
 
-    const tokens = line.split(/\s+/).filter((t) => t.length > 0);
-    if (tokens.length < 3) continue;
+    // Skip balance/rate lines
+    if (line.match(/Opening Balance|Closing Balance|Interest Rate Change/i)) continue;
 
-    // Assume format: Date | Description | Amount | Balance
-    const balanceStr = tokens[tokens.length - 1];
-    const balance = parseFloat(balanceStr.replace(/,/g, ''));
+    const [, monthName, day] = dateMatch;
+    const month = monthMap[monthName];
+    const date = new Date(year, month, parseInt(day));
 
-    const amountStr = tokens[tokens.length - 2];
-    const amount = parseFloat(amountStr.replace(/,/g, ''));
+    // Check if amount/balance are on next line
+    let fullLine = line;
+    let amountOnNextLine = false;
+    if (i + 1 < lines.length) {
+      const nextLine = lines[i + 1].trim();
+      // If next line starts with amount indicator, it's a multi-line transaction
+      if (nextLine.match(/^[-+]\s*\$/)) {
+        fullLine += ' ' + nextLine;
+        amountOnNextLine = true;
+      }
+    }
+
+    const tokens = fullLine.split(/\s+/).filter((t) => t.length > 0);
+
+    if (tokens.length < 5) continue;
+
+    // Parse based on whether amount is on next line
+    let amount = 0;
+    let balance = 0;
+    let descEndIndex = 0;
+
+    if (amountOnNextLine) {
+      // Multi-line: Oct 21 ... Debit $9,267.42
+      //             - $3,633.74
+      // Last token = amount, second-to-last = sign, third-to-last = balance
+      const amountStr = tokens[tokens.length - 1];
+      const sign = tokens[tokens.length - 2];
+      const balanceStr = tokens[tokens.length - 3];
+      
+      balance = parseFloat(balanceStr.replace(/[$,]/g, ''));
+      const amountValue = parseFloat(amountStr.replace(/[$,]/g, ''));
+      amount = sign === '-' ? -amountValue : amountValue;
+      
+      descEndIndex = tokens.length - 3;
+    } else {
+      // Single line: Oct 27 ... Debit - $300.00 $8,967.42
+      const balanceStr = tokens[tokens.length - 1];
+      balance = parseFloat(balanceStr.replace(/[$,]/g, ''));
+      
+      const amountToken = tokens[tokens.length - 2];
+      
+      if (amountToken === '-' || amountToken === '+') {
+        // Split format: ... - $300.00 $8,967.42
+        const sign = amountToken;
+        const numStr = tokens[tokens.length - 3];
+        const numValue = parseFloat(numStr.replace(/[$,]/g, ''));
+        amount = sign === '-' ? -numValue : numValue;
+        descEndIndex = tokens.length - 3;
+      } else if (amountToken.match(/^[+-]?\$?[\d,]+\.\d{2}$/)) {
+        // Direct format: ... + $32.88 $9,000.30
+        amount = parseFloat(amountToken.replace(/[$,+]/g, ''));
+        if (amountToken.startsWith('-')) {
+          amount = -Math.abs(amount);
+        }
+        descEndIndex = tokens.length - 2;
+      } else {
+        continue;
+      }
+    }
 
     if (isNaN(amount) || isNaN(balance)) continue;
 
-    const description = tokens.slice(1, -2).join(' ');
-    const descUpper = description.toUpperCase();
+    // Remove category from description
+    const possibleCategory = tokens[descEndIndex - 1];
+    if (possibleCategory === 'Debit' || possibleCategory === 'Credit') {
+      descEndIndex = descEndIndex - 1;
+    }
 
+    let description = tokens.slice(2, descEndIndex).join(' ');
+    
+    // Clean up description (do this AFTER removing category):
+    // 1. Remove trailing +/- signs
+    description = description.replace(/\s*[+-]\s*$/, '').trim();
+    // 2. Remove any remaining Debit/Credit words
+    description = description.replace(/\s*(Debit|Credit)\s*$/i, '').trim();
+
+    // Classify transaction type
+    const descUpper = description.toUpperCase();
     let type: 'INCOME' | 'EXPENSE' | 'TRANSFER' = amount >= 0 ? 'INCOME' : 'EXPENSE';
 
-    if (
-      descUpper.includes('TRANSFER') ||
-      descUpper.includes('XFER')
-    ) {
-      type = 'TRANSFER';
-    } else if (descUpper.includes('INTEREST')) {
+    if (descUpper.includes('INTEREST')) {
       type = 'INCOME';
+    } else if (descUpper.includes('WITHDRAWAL') || amount < 0) {
+      // Withdrawals are expenses (money leaving your account)
+      type = 'EXPENSE';
+    } else if (descUpper.includes('TRANSFER') || descUpper.includes('XFER')) {
+      type = 'TRANSFER';
+    }
+
+    // Normalize signs: expenses = negative, income = positive
+    if (type === 'EXPENSE' && amount > 0) {
+      amount = -amount;
+    } else if (type === 'INCOME' && amount < 0) {
+      amount = Math.abs(amount);
     }
 
     transactions.push({

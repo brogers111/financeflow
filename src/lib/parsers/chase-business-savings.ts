@@ -7,15 +7,22 @@ interface TextItem {
 
 /**
  * Parses Chase Business Savings Account statements
- * Format: Date | Description | Balance
- * Same format as personal savings - amounts calculated from balance changes
+ * Format: Date | Description | [Instances] | Amount | Balance
+ * Note: Business savings has an extra "Instances" column that personal savings doesn't have
  */
 export async function parseChaseBusinessSavings(buffer: Buffer): Promise<ParsedTransaction[]> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
   
   const data = new Uint8Array(buffer);
-  const loadingTask = pdfjsLib.getDocument({ data });
+  
+  // Suppress warnings about canvas and fonts
+  const loadingTask = pdfjsLib.getDocument({
+    data,
+    verbosity: 0,
+    standardFontDataUrl: null,
+  });
+  
   const pdfDoc = await loadingTask.promise;
 
   let fullText = '';
@@ -56,44 +63,55 @@ function parseTransactions(text: string): ParsedTransaction[] {
   const periodMatch = text.match(/(\w+)\s+\d+,\s+(\d{4})\s+through/i);
   const year = periodMatch ? parseInt(periodMatch[2]) : new Date().getFullYear();
 
-  // Get beginning balance
-  const beginMatch = text.match(/Beginning Balance\s*\$?([\d,]+\.\d{2})/i);
-  const beginningBalance = beginMatch
-    ? parseFloat(beginMatch[1].replace(/,/g, ''))
-    : 0;
-
   const lines = text.split('\n');
-  let prevBalance = beginningBalance;
 
   for (const line of lines) {
+    // Must start with MM/DD
     if (!line.match(/^\d{2}\/\d{2}/)) continue;
+    
+    // Skip balance summary lines
     if (line.match(/Beginning Balance|Ending Balance/i)) continue;
 
+    // Extract date
     const dateMatch = line.match(/^(\d{2})\/(\d{2})/);
     if (!dateMatch) continue;
 
     const [, month, day] = dateMatch;
     const date = new Date(year, parseInt(month) - 1, parseInt(day));
 
+    // Tokenize line
     const tokens = line.split(/\s+/).filter((t) => t.length > 0);
-    if (tokens.length < 2) continue;
+    if (tokens.length < 3) continue;
 
+    // Business savings format: Date | Description | [Instances] | Amount | Balance
     // Last token = balance
     const balanceStr = tokens[tokens.length - 1];
     const balance = parseFloat(balanceStr.replace(/,/g, ''));
 
-    if (isNaN(balance)) continue;
+    // Second-to-last token = amount
+    const amountStr = tokens[tokens.length - 2];
+    const amount = parseFloat(amountStr.replace(/,/g, ''));
 
-    // Calculate amount from balance change
-    const amount = balance - prevBalance;
+    if (isNaN(amount) || isNaN(balance)) continue;
 
-    // Description is everything except date and balance
-    const description = tokens.slice(1, -1).join(' ');
+    // Description is everything between date and the last 2-3 tokens
+    // We need to exclude: [instances (if numeric)], amount, balance
+    let descEndIndex = tokens.length - 2; // Before amount
+    
+    // Check if there's an instances column (numeric value before amount)
+    if (tokens.length >= 4) {
+      const possibleInstance = tokens[tokens.length - 3];
+      if (!isNaN(parseFloat(possibleInstance))) {
+        descEndIndex = tokens.length - 3; // Before instances
+      }
+    }
+
+    const description = tokens.slice(1, descEndIndex).join(' ');
 
     const descUpper = description.toUpperCase();
     let type: 'INCOME' | 'EXPENSE' | 'TRANSFER' = amount >= 0 ? 'INCOME' : 'EXPENSE';
 
-    // Classify transfers
+    // Classify transfers (account-to-account movements)
     if (
       descUpper.includes('TRANSFER FROM') ||
       descUpper.includes('TRANSFER TO') ||
@@ -105,6 +123,10 @@ function parseTransactions(text: string): ParsedTransaction[] {
     else if (descUpper.includes('INTEREST')) {
       type = 'INCOME';
     }
+    // Remote deposits are business income (check deposits)
+    else if (descUpper.includes('REMOTE ONLINE DEPOSIT')) {
+      type = 'INCOME';
+    }
 
     transactions.push({
       date,
@@ -113,8 +135,6 @@ function parseTransactions(text: string): ParsedTransaction[] {
       balance,
       type,
     });
-
-    prevBalance = balance;
   }
 
   return transactions;
