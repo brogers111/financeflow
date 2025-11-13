@@ -1,5 +1,4 @@
 import { PrismaClient, AccountType, TransactionType, Category, Prisma } from '@prisma/client';
-import { parseStatement, AccountType as ParserAccountType } from '@/lib/parsers/router';
 
 const prisma = new PrismaClient();
 
@@ -49,7 +48,7 @@ export const resolvers = {
   Query: {
     // Fetch all active accounts
     accounts: async () => {
-      return prisma.account.findMany({
+      return prisma.financialAccount.findMany({
         where: { isActive: true },
         include: { 
           transactions: true, 
@@ -61,7 +60,7 @@ export const resolvers = {
 
     // Fetch single account by ID
     account: async (_parent: unknown, { id }: { id: string }) => {
-      return prisma.account.findUnique({
+      return prisma.financialAccount.findUnique({
         where: { id },
         include: { 
           transactions: true, 
@@ -104,7 +103,7 @@ export const resolvers = {
 
     // Fetch dashboard stats
     dashboardStats: async () => {
-      const accounts = await prisma.account.findMany({
+      const accounts = await prisma.financialAccount.findMany({
         where: { isActive: true }
       });
 
@@ -285,7 +284,7 @@ export const resolvers = {
   Mutation: {
     // Create account
     createAccount: async (_parent: unknown, { input }: { input: AccountInput }) => {
-      return prisma.account.create({
+      return prisma.financialAccount.create({
         data: {
           name: input.name,
           type: input.type,
@@ -303,7 +302,7 @@ export const resolvers = {
 
     // Update account
     updateAccount: async (_parent: unknown, { id, input }: { id: string; input: Partial<AccountInput> }) => {
-      const data: Prisma.AccountUpdateInput = {};
+      const data: Prisma.FinancialAccountUpdateInput = {};
       
       if (input.name !== undefined) data.name = input.name;
       if (input.type !== undefined) data.type = input.type;
@@ -312,7 +311,7 @@ export const resolvers = {
       if (input.currency !== undefined) data.currency = input.currency;
       if (input.isActive !== undefined) data.isActive = input.isActive;
 
-      return prisma.account.update({
+      return prisma.financialAccount.update({
         where: { id },
         data,
         include: { user: true }
@@ -321,7 +320,7 @@ export const resolvers = {
 
     // Delete account
     deleteAccount: async (_parent: unknown, { id }: { id: string }) => {
-      await prisma.account.delete({ where: { id } });
+      await prisma.financialAccount.delete({ where: { id } });
       return true;
     },
 
@@ -347,7 +346,7 @@ export const resolvers = {
       });
 
       // Update account balance
-      await prisma.account.update({
+      await prisma.financialAccount.update({
         where: { id: input.accountId },
         data: {
           balance: {
@@ -387,7 +386,7 @@ export const resolvers = {
 
       if (transaction) {
         // Reverse the balance change
-        await prisma.account.update({
+        await prisma.financialAccount.update({
           where: { id: transaction.accountId },
           data: {
             balance: {
@@ -478,7 +477,7 @@ export const resolvers = {
       });
 
       // Update account balance
-      await prisma.account.update({
+      await prisma.financialAccount.update({
         where: { id: input.accountId },
         data: {
           balance: { increment: input.amount }
@@ -498,7 +497,6 @@ export const resolvers = {
       }
     ) => {
       try {
-        // Get existing categorization patterns for learning
         const patterns = await prisma.categorizationPattern.findMany({
           orderBy: { confidence: 'desc' }
         });
@@ -512,43 +510,38 @@ export const resolvers = {
 
         let transactionsCreated = 0;
 
-        // Convert base64 PDF to buffer
-        const buffer = Buffer.from(fileContent, 'base64');
+        // Call the parsing API route instead of importing directly
+        const parseResponse = await fetch('http://localhost:3000/api/parse-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            buffer: fileContent,
+            statementType
+          })
+        });
 
-        // Map GraphQL enum to parser enum
-        const parserTypeMap: Record<string, ParserAccountType> = {
-          'CHASE_CHECKING': 'CHASE_CHECKING',
-          'CHASE_PERSONAL_SAVINGS': 'CHASE_SAVINGS',
-          'CHASE_CREDIT': 'CHASE_CREDIT',
-          'CHASE_BUSINESS_SAVINGS': 'CHASE_BUSINESS_SAVINGS',
-          'CAPITAL_ONE_SAVINGS': 'CAPITAL_ONE_SAVINGS'
-        };
+        if (!parseResponse.ok) {
+          const error = await parseResponse.json();
+          throw new Error(error.error || 'Failed to parse PDF');
+        }
 
-        const parserType = parserTypeMap[statementType];
-        
-        // Parse transactions using your new parsers
-        const transactions = await parseStatement(buffer, parserType);
+        const { transactions } = await parseResponse.json();
 
         console.log(`✅ Parsed ${transactions.length} transactions from ${statementType}`);
 
-        // Process each transaction
+        // Process each transaction (same as before)
         for (const txn of transactions) {
-          // Check if we have a learned pattern for this description
           const matchingPattern = patterns.find(p => 
             txn.description.toUpperCase().includes(p.descriptionPattern)
           );
 
-          // Determine Prisma type and amount
-          // Parsers return: INCOME/EXPENSE/TRANSFER with signed amounts
-          // Expenses are already negative, income is positive
           const prismaType = txn.type as TransactionType;
           const prismaAmount = txn.amount;
 
           if (matchingPattern && matchingPattern.confidence > 0.7) {
-            // Auto-categorize based on learned pattern
             await prisma.transaction.create({
               data: {
-                date: txn.date,
+                date: new Date(txn.date),
                 description: txn.description,
                 amount: prismaAmount,
                 type: prismaType,
@@ -560,7 +553,6 @@ export const resolvers = {
               }
             });
 
-            // Update pattern usage
             await prisma.categorizationPattern.update({
               where: { id: matchingPattern.id },
               data: {
@@ -571,10 +563,9 @@ export const resolvers = {
 
             transactionsCreated++;
           } else {
-            // Create uncategorized transaction
             const uncategorized = await prisma.transaction.create({
               data: {
-                date: txn.date,
+                date: new Date(txn.date),
                 description: txn.description,
                 amount: prismaAmount,
                 type: prismaType,
@@ -591,10 +582,9 @@ export const resolvers = {
           }
         }
 
-        // Update account balance
-        const totalChange = transactions.reduce((sum, t) => sum + t.amount, 0);
+        const totalChange = transactions.reduce((sum: number, t: any) => sum + t.amount, 0);
         
-        await prisma.account.update({
+        await prisma.financialAccount.update({
           where: { id: accountId },
           data: {
             balance: { increment: totalChange }

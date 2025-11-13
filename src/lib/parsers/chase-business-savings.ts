@@ -1,4 +1,5 @@
 import { ParsedTransaction } from './types';
+import path from 'path';
 
 interface TextItem {
   str: string;
@@ -14,13 +15,15 @@ export async function parseChaseBusinessSavings(buffer: Buffer): Promise<ParsedT
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
   
+  // Use absolute path to worker in public directory
+  const workerPath = path.join(process.cwd(), 'public', 'pdf.worker.js');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerPath;
+  
   const data = new Uint8Array(buffer);
   
-  // Suppress warnings about canvas and fonts
   const loadingTask = pdfjsLib.getDocument({
     data,
     verbosity: 0,
-    standardFontDataUrl: null,
   });
   
   const pdfDoc = await loadingTask.promise;

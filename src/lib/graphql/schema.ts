@@ -158,6 +158,8 @@ export const typeDefs = gql`
     
     # Categorization
     categorizeTransaction(id: ID!, categoryId: ID!): Transaction!
+
+    categorizeTransactionsWithAI(transactionIds: [ID!]!): CategorizationResult!
     
     # Bulk operations
     uploadStatement(
@@ -222,5 +224,11 @@ export const typeDefs = gql`
     success: Boolean!
     transactionsCreated: Int!
     needsCategorization: [Transaction!]!
+  }
+
+  type CategorizationResult {
+    success: Boolean!
+    categorized: Int!
+    total: Int!
   }
 `;

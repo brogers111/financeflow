@@ -10,7 +10,6 @@ export const GET_ACCOUNTS = gql`
       institution
       balance
       isActive
-      createdAt
     }
   }
 `;
@@ -228,6 +227,16 @@ export const CATEGORIZE_TRANSACTION = gql`
   }
 `;
 
+export const CATEGORIZE_WITH_AI = gql`
+  mutation CategorizeTransactionsWithAI($transactionIds: [ID!]!) {
+    categorizeTransactionsWithAI(transactionIds: $transactionIds) {
+      success
+      categorized
+      total
+    }
+  }
+`;
+
 export const CREATE_CATEGORY = gql`
   mutation CreateCategory($input: CategoryInput!) {
     createCategory(input: $input) {
@@ -252,8 +261,8 @@ export const RECORD_PAYCHECK = gql`
 `;
 
 export const UPLOAD_STATEMENT = gql`
-  mutation UploadStatement($file: Upload!, $accountId: ID!) {
-    uploadStatement(file: $file, accountId: $accountId) {
+  mutation UploadStatement($fileContent: String!, $accountId: ID!, $statementType: StatementType!) {
+    uploadStatement(fileContent: $fileContent, accountId: $accountId, statementType: $statementType) {
       success
       transactionsCreated
       needsCategorization {

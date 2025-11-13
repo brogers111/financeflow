@@ -1,24 +1,24 @@
 import { ParsedTransaction } from './types';
+import path from 'path';
 
 interface TextItem {
   str: string;
   transform: number[];
 }
 
-/**
- * Parses Capital One Savings Account statements
- * Format: DATE | DESCRIPTION | CATEGORY | AMOUNT | BALANCE
- */
 export async function parseCapitalOneSavings(buffer: Buffer): Promise<ParsedTransaction[]> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
+  
+  // Use absolute path to worker in public directory
+  const workerPath = path.join(process.cwd(), 'public', 'pdf.worker.js');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerPath;
   
   const data = new Uint8Array(buffer);
   
   const loadingTask = pdfjsLib.getDocument({
     data,
     verbosity: 0,
-    standardFontDataUrl: null,
   });
   
   const pdfDoc = await loadingTask.promise;

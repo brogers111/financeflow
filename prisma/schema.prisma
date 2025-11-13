@@ -7,24 +7,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User models for NextAuth
+// User models for NextAuth - MUST use exact names PrismaAdapter expects
 model User {
-  id            String        @id @default(uuid())
+  id            String    @id @default(uuid())
   name          String?
-  email         String?       @unique
+  email         String?   @unique
   emailVerified DateTime?
   image         String?
-  accounts      UserAccount[]
+  accounts      Account[] // NextAuth OAuth accounts
   sessions      Session[]
 
   // Link to financial accounts
-  financialAccounts Account[]
+  financialAccounts FinancialAccount[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model UserAccount {
+// NextAuth OAuth accounts - must be named "Account" for PrismaAdapter
+model Account {
   id                String  @id @default(uuid())
   userId            String
   type              String
@@ -41,6 +42,7 @@ model UserAccount {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@map("UserAccount") // Maps to your existing UserAccount table
 }
 
 model Session {
@@ -59,8 +61,8 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Financial models
-model Account {
+// Financial models - your bank accounts
+model FinancialAccount {
   id          String      @id @default(uuid())
   userId      String
   user        User        @relation(fields: [userId], references: [id])
@@ -75,6 +77,8 @@ model Account {
 
   transactions   Transaction[]
   balanceHistory BalanceSnapshot[]
+
+  @@map("Account") // Maps to your existing Account table
 }
 
 enum AccountType {
@@ -86,9 +90,9 @@ enum AccountType {
 }
 
 model Transaction {
-  id        String  @id @default(uuid())
+  id        String           @id @default(uuid())
   accountId String
-  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account   FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   date        DateTime
   description String
@@ -140,9 +144,9 @@ model Category {
 }
 
 model BalanceSnapshot {
-  id        String  @id @default(uuid())
+  id        String           @id @default(uuid())
   accountId String
-  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account   FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   balance Float
   date    DateTime @default(now())
