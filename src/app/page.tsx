@@ -1,14 +1,16 @@
 'use client';
 
 import { useQuery } from '@apollo/client';
-import { GET_DASHBOARD_STATS, GET_ACCOUNTS } from '@/lib/graphql/queries';
+import { GET_DASHBOARD_STATS, GET_ACCOUNTS, GET_INVESTMENT_PORTFOLIOS } from '@/lib/graphql/queries';
 import Link from 'next/link';
+import InvestmentScorecard from '@/components/InvestmentScorecard';
 
 export default function Dashboard() {
   const { data: statsData, loading: statsLoading } = useQuery(GET_DASHBOARD_STATS);
   const { data: accountsData, loading: accountsLoading } = useQuery(GET_ACCOUNTS);
+  const { data: investmentsData, loading: investmentsLoading, refetch: refetchInvestments } = useQuery(GET_INVESTMENT_PORTFOLIOS);
 
-  if (statsLoading || accountsLoading) {
+  if (statsLoading || accountsLoading || investmentsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-gray-600">Loading dashboard...</div>
@@ -18,6 +20,9 @@ export default function Dashboard() {
 
   const stats = statsData?.dashboardStats || {};
   const accounts = accountsData?.accounts || [];
+  const investments = investmentsData?.investmentPortfolios || [];
+
+  const totalInvestments = investments.reduce((sum: number, portfolio: any) => sum + portfolio.currentValue, 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">

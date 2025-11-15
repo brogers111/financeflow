@@ -276,3 +276,70 @@ export const UPLOAD_STATEMENT = gql`
     }
   }
 `;
+
+export const GET_INVESTMENT_PORTFOLIOS = gql`
+  query GetInvestmentPortfolios {
+    investmentPortfolios {
+      id
+      name
+      type
+      institution
+      currentValue
+      valueHistory {
+        id
+        value
+        date
+        notes
+      }
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_INVESTMENT_VALUE = gql`
+  mutation UpdateInvestmentValue(
+    $portfolioId: ID!
+    $value: Float!
+    $date: String!
+    $notes: String
+  ) {
+    updateInvestmentValue(
+      portfolioId: $portfolioId
+      value: $value
+      date: $date
+      notes: $notes
+    ) {
+      id
+      name
+      currentValue
+      valueHistory {
+        id
+        value
+        date
+        notes
+      }
+    }
+  }
+`;
+
+export const CREATE_INVESTMENT_PORTFOLIO = gql`
+  mutation CreateInvestmentPortfolio(
+    $name: String!
+    $type: String!
+    $institution: String!
+    $currentValue: Float
+  ) {
+    createInvestmentPortfolio(
+      name: $name
+      type: $type
+      institution: $institution
+      currentValue: $currentValue
+    ) {
+      id
+      name
+      type
+      institution
+      currentValue
+    }
+  }
+`;

@@ -103,6 +103,26 @@ export const typeDefs = gql`
     avgYearlySpend: Float!
   }
 
+  type InvestmentPortfolio {
+    id: ID!
+    name: String!
+    type: String!
+    institution: String!
+    currentValue: Float!
+    valueHistory: [InvestmentSnapshot!]!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type InvestmentSnapshot {
+    id: ID!
+    portfolioId: String!
+    value: Float!
+    date: String!
+    notes: String
+    createdAt: String!
+  }
+
   type Query {
     # Accounts
     accounts: [Account!]!
@@ -129,6 +149,9 @@ export const typeDefs = gql`
     
     # Paycheck depletion
     paycheckFlow(paycheckDate: String!): PaycheckFlowData!
+
+    investmentPortfolios: [InvestmentPortfolio!]!
+    investmentPortfolio(id: ID!): InvestmentPortfolio
   }
 
   type PaycheckFlowData {
@@ -173,6 +196,20 @@ export const typeDefs = gql`
     
     # Paycheck tracking
     recordPaycheck(input: PaycheckInput!): Paycheck!
+
+    createInvestmentPortfolio(
+      name: String!
+      type: String!
+      institution: String!
+      currentValue: Float
+    ): InvestmentPortfolio!
+
+    updateInvestmentValue(
+      portfolioId: ID!
+      value: Float!
+      date: String!
+      notes: String
+    ): InvestmentPortfolio!
   }
 
   input CreateAccountInput {

@@ -278,7 +278,28 @@ export const resolvers = {
         dailySpending,
         remainingBalance: balance
       };
-    }
+    },
+
+    investmentPortfolios: async () => {
+      return prisma.investmentPortfolio.findMany({
+        include: {
+          valueHistory: {
+            orderBy: { date: 'desc' }
+          }
+        }
+      });
+    },
+
+    investmentPortfolio: async (_parent: unknown, { id }: { id: string }) => {
+      return prisma.investmentPortfolio.findUnique({
+        where: { id },
+        include: {
+          valueHistory: {
+            orderBy: { date: 'desc' }
+          }
+        }
+      });
+    },
   },
 
   Mutation: {
@@ -691,6 +712,86 @@ export const resolvers = {
         categorized,
         total: transactions.length
       };
-    }
+    },
+
+    createInvestmentPortfolio: async (
+      _parent: unknown,
+      { name, type, institution, currentValue }: {
+        name: string;
+        type: string;
+        institution: string;
+        currentValue?: number;
+      }
+    ) => {
+      // For now, we'll need to get the userId from somewhere
+      // You might want to pass it in or get it from auth context
+      const user = await prisma.user.findFirst();
+      if (!user) throw new Error('No user found');
+
+      const portfolio = await prisma.investmentPortfolio.create({
+        data: {
+          name,
+          type,
+          institution,
+          currentValue: currentValue || 0,
+          userId: user.id
+        },
+        include: {
+          valueHistory: true
+        }
+      });
+
+      // Create initial snapshot if value provided
+      if (currentValue && currentValue > 0) {
+        await prisma.investmentSnapshot.create({
+          data: {
+            portfolioId: portfolio.id,
+            value: currentValue,
+            date: new Date(),
+            notes: 'Initial value'
+          }
+        });
+      }
+
+      return portfolio;
+    },
+
+    updateInvestmentValue: async (
+      _parent: unknown,
+      { portfolioId, value, date, notes }: {
+        portfolioId: string;
+        value: number;
+        date: string;
+        notes?: string;
+      }
+    ) => {
+      // Create a new snapshot
+      await prisma.investmentSnapshot.create({
+        data: {
+          portfolioId,
+          value,
+          date: new Date(date),
+          notes
+        }
+      });
+
+      // Update the current value on the portfolio
+      const portfolio = await prisma.investmentPortfolio.update({
+        where: { id: portfolioId },
+        data: {
+          currentValue: value,
+          updatedAt: new Date()
+        },
+        include: {
+          valueHistory: {
+            orderBy: { date: 'desc' }
+          }
+        }
+      });
+
+      console.log(`📈 Updated ${portfolio.name} to $${value}`);
+
+      return portfolio;
+    },
   }
 };

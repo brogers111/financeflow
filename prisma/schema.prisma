@@ -20,6 +20,9 @@ model User {
   // Link to financial accounts
   financialAccounts FinancialAccount[]
 
+  // Link to investment portfolios
+  investmentPortfolios InvestmentPortfolio[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -185,4 +188,35 @@ model CategorizationPattern {
   lastUsed           DateTime @default(now())
 
   @@index([descriptionPattern])
+}
+
+model InvestmentPortfolio {
+  id           String @id @default(uuid())
+  name         String // "ROTH IRA", "401K", "TOD", etc.
+  type         String // "ROTH", "401K", "TOD", "BROKERAGE"
+  institution  String // "American Funds", "Fidelity", etc.
+  currentValue Float  @default(0)
+  userId       String
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  valueHistory InvestmentSnapshot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("InvestmentPortfolio")
+}
+
+model InvestmentSnapshot {
+  id          String              @id @default(uuid())
+  portfolioId String
+  portfolio   InvestmentPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  value Float
+  date  DateTime
+  notes String?
+
+  createdAt DateTime @default(now())
+
+  @@map("InvestmentSnapshot")
 }
