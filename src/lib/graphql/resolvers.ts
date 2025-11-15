@@ -414,19 +414,26 @@ export const resolvers = {
 
       // Learn from this categorization
       if (transaction.description) {
+        const pattern = transaction.description.toUpperCase().trim();
+
+        console.log(`Learning pattern: "${pattern}" => category ${categoryId}`);
+
         await prisma.categorizationPattern.upsert({
-          where: { descriptionPattern: transaction.description.toUpperCase() },
+          where: { descriptionPattern: pattern },
           update: {
+            categoryId,
+            confidence: 1.0,
             timesUsed: { increment: 1 },
             lastUsed: new Date()
           },
           create: {
-            descriptionPattern: transaction.description.toUpperCase(),
+            descriptionPattern: pattern,
             categoryId,
             confidence: 1.0,
             timesUsed: 1
           }
         });
+        console.log(`Transaction ${id} categorized to category ${categoryId}. Pattern: ${pattern}`);
       }
 
       return transaction;
@@ -530,6 +537,14 @@ export const resolvers = {
         console.log(`✅ Parsed ${transactions.length} transactions from ${statementType}`);
         console.log(`✅ Ending balance from statement: ${endingBalance}`);
 
+        // Find the most recent transaction date from this statement
+        let statementEndDate: Date | null = null;
+        if (transactions.length > 0) {
+          const dates = transactions.map((t: any) => new Date(t.date));
+          statementEndDate = new Date(Math.max(...dates.map((d: Date) => d.getTime())));
+          console.log(`📅 Statement end date: ${statementEndDate.toISOString()}`);
+        }
+
         // Process each transaction (same as before)
         for (const txn of transactions) {
           const matchingPattern = patterns.find(p => 
@@ -583,12 +598,30 @@ export const resolvers = {
           }
         }
         
-        await prisma.financialAccount.update({
-          where: { id: accountId },
-          data: {
-            balance: endingBalance
+        // Only update account balance if this statement is newer than existing transactions
+        if (statementEndDate && endingBalance !== 0) {
+          // Get the most recent transaction date for this account
+          const mostRecentTransaction = await prisma.transaction.findFirst({
+            where: { accountId },
+            orderBy: { date: 'desc' },
+            select: { date: true }
+          });
+
+          const shouldUpdateBalance = !mostRecentTransaction || 
+            statementEndDate >= mostRecentTransaction.date;
+
+          if (shouldUpdateBalance) {
+            console.log(`💰 Updating account balance to: $${endingBalance}`);
+            await prisma.financialAccount.update({
+              where: { id: accountId },
+              data: {
+                balance: endingBalance
+              }
+            });
+          } else {
+            console.log(`⏭️ Skipping balance update - statement is older than existing transactions`);
           }
-        });
+        }
 
         return {
           success: true,

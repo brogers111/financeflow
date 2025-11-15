@@ -67,11 +67,19 @@ export async function parseChaseChecking(buffer: Buffer): Promise<ParsedStatemen
 }
 
 function extractEndingBalance(text: string): number {
-  // Look for "Ending Balance" line
-  const match = text.match(/Ending Balance[^\d]*\$?([\d,]+\.\d{2})/i);
-  if (match){
-    return parseFloat(match[1].replace(/,/g, ''));
+  const patterns = [
+    /Ending\s+Balance[^\$]*\$([\d,]+\.\d{2})/i,  // Handles multiple spaces
+    /Ending Balance[^\$]*\$([\d,]+\.\d{2})/i,
+    /Ending[^\d]*(\d[\d,]*\.\d{2})/i,  // Fallback
+  ];
+  
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      return parseFloat(match[1].replace(/,/g, ''));
+    }
   }
+  
   return 0;
 }
 

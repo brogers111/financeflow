@@ -127,6 +127,8 @@ function parseTransactions(text: string): ParsedTransaction[] {
     // All positive amounts on credit cards are expenses (purchases/charges)
     const type: 'INCOME' | 'EXPENSE' | 'TRANSFER' = 'EXPENSE';
 
+    amount = -amount; // Store expenses as negative amounts
+
     transactions.push({
       date,
       description,
