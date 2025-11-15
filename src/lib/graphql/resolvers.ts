@@ -525,9 +525,10 @@ export const resolvers = {
           throw new Error(error.error || 'Failed to parse PDF');
         }
 
-        const { transactions } = await parseResponse.json();
+        const { transactions, endingBalance } = await parseResponse.json();
 
         console.log(`✅ Parsed ${transactions.length} transactions from ${statementType}`);
+        console.log(`✅ Ending balance from statement: ${endingBalance}`);
 
         // Process each transaction (same as before)
         for (const txn of transactions) {
@@ -581,13 +582,11 @@ export const resolvers = {
             needsCategorization.push(uncategorized);
           }
         }
-
-        const totalChange = transactions.reduce((sum: number, t: any) => sum + t.amount, 0);
         
         await prisma.financialAccount.update({
           where: { id: accountId },
           data: {
-            balance: { increment: totalChange }
+            balance: endingBalance
           }
         });
 

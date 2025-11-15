@@ -43,7 +43,7 @@ export const GET_TRANSACTIONS = gql`
   query GetTransactions(
     $accountId: ID
     $categoryId: ID
-    $type: String
+    $type: TransactionType
     $startDate: String
     $endDate: String
   ) {
@@ -68,12 +68,14 @@ export const GET_TRANSACTIONS = gql`
         id
         name
       }
+      wasManual
+      confidence
     }
   }
 `;
 
 export const GET_CATEGORIES = gql`
-  query GetCategories($type: String) {
+  query GetCategories($type: TransactionType) {
     categories(type: $type) {
       id
       name

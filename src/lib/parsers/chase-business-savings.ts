@@ -1,4 +1,4 @@
-import { ParsedTransaction } from './types';
+import { ParsedTransaction, ParsedStatement } from './types';
 import path from 'path';
 
 interface TextItem {
@@ -11,7 +11,7 @@ interface TextItem {
  * Format: Date | Description | [Instances] | Amount | Balance
  * Note: Business savings has an extra "Instances" column that personal savings doesn't have
  */
-export async function parseChaseBusinessSavings(buffer: Buffer): Promise<ParsedTransaction[]> {
+export async function parseChaseBusinessSavings(buffer: Buffer): Promise<ParsedStatement> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
   
@@ -56,7 +56,22 @@ export async function parseChaseBusinessSavings(buffer: Buffer): Promise<ParsedT
     });
   }
 
-  return parseTransactions(fullText);
+  const transactions = parseTransactions(fullText);
+  const endingBalance = extractEndingBalance(fullText);
+
+  return {
+    transactions,
+    endingBalance
+  };
+}
+
+function extractEndingBalance(text: string): number {
+  // Look for "Ending Balance" followed by amount
+  const match = text.match(/Ending Balance[^\d]*\$?([\d,]+\.\d{2})/i);
+  if (match) {
+    return parseFloat(match[1].replace(/,/g, ''));
+  }
+  return 0;
 }
 
 function parseTransactions(text: string): ParsedTransaction[] {

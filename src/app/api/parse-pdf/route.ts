@@ -11,9 +11,9 @@ export async function POST(request: NextRequest) {
     const pdfBuffer = Buffer.from(buffer, 'base64');
     
     // Parse the PDF
-    const transactions = await parseStatement(pdfBuffer, statementType as any);
+    const result = await parseStatement(pdfBuffer, statementType as any);
     
-    return NextResponse.json({ transactions });
+    return NextResponse.json({ transactions: result.transactions, endingBalance: result.endingBalance });
   } catch (error) {
     console.error('PDF parsing error:', error);
     return NextResponse.json(

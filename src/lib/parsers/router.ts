@@ -1,4 +1,4 @@
-import { ParsedTransaction } from './types';
+import { ParsedStatement } from './types';
 import { parseChaseChecking } from './chase-checking';
 import { parseChaseSavings } from './chase-personal-savings';
 import { parseChaseCreditCard } from './chase-credit-card';
@@ -7,7 +7,7 @@ import { parseCapitalOneSavings } from './capital-one-savings';
 
 export type AccountType = 
   | 'CHASE_CHECKING'
-  | 'CHASE_SAVINGS'
+  | 'CHASE_PERSONAL_SAVINGS'
   | 'CHASE_CREDIT'
   | 'CHASE_BUSINESS_SAVINGS'
   | 'CAPITAL_ONE_SAVINGS';
@@ -15,11 +15,11 @@ export type AccountType =
 export async function parseStatement(
   buffer: Buffer,
   accountType: AccountType
-): Promise<ParsedTransaction[]> {
+): Promise<ParsedStatement> {
   switch (accountType) {
     case 'CHASE_CHECKING':
       return parseChaseChecking(buffer);
-    case 'CHASE_SAVINGS':
+    case 'CHASE_PERSONAL_SAVINGS':
       return parseChaseSavings(buffer);
     case 'CHASE_CREDIT':
       return parseChaseCreditCard(buffer);

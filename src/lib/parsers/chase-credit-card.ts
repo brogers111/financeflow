@@ -1,4 +1,4 @@
-import { ParsedTransaction } from './types';
+import { ParsedTransaction, ParsedStatement } from './types';
 import path from 'path';
 
 interface TextItem {
@@ -11,7 +11,7 @@ interface TextItem {
  * Format: Date | Merchant + Location | Amount
  * Note: Credit cards don't have balance column
  */
-export async function parseChaseCreditCard(buffer: Buffer): Promise<ParsedTransaction[]> {
+export async function parseChaseCreditCard(buffer: Buffer): Promise<ParsedStatement> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
   
@@ -56,7 +56,23 @@ export async function parseChaseCreditCard(buffer: Buffer): Promise<ParsedTransa
     });
   }
 
-  return parseTransactions(fullText);
+  const transactions = parseTransactions(fullText);
+  const endingBalance = extractEndingBalance(fullText);
+
+  return {
+    transactions,
+    endingBalance
+  };
+}
+
+function extractEndingBalance(text: string): number {
+  // Chase Credit: "New Balance" followed by amount (negative for credit cards)
+  const match = text.match(/New Balance[^\d]*\$?([\d,]+\.\d{2})/i);
+  if (match) {
+    // Credit card balance is typically shown as positive but represents debt
+    return -parseFloat(match[1].replace(/,/g, ''));
+  }
+  return 0;
 }
 
 function parseTransactions(text: string): ParsedTransaction[] {

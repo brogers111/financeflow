@@ -5,3 +5,8 @@ export interface ParsedTransaction {
   balance?: number;
   type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
 }
+
+export interface ParsedStatement {
+  transactions: ParsedTransaction[];
+  endingBalance: number;
+}
