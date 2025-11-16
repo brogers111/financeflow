@@ -22,7 +22,11 @@ export default function Dashboard() {
   const accounts = accountsData?.accounts || [];
   const investments = investmentsData?.investmentPortfolios || [];
 
-  const totalInvestments = investments.reduce((sum: number, portfolio: any) => sum + portfolio.currentValue, 0);
+  // Calculate total investments
+  const totalInvestments = investments.reduce(
+    (sum: number, inv: any) => sum + inv.currentValue, 
+    0
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -33,7 +37,7 @@ export default function Dashboard() {
         <div className="bg-white p-6 rounded-lg shadow">
           <p className="text-sm text-gray-600 mb-1">Net Worth</p>
           <p className="text-3xl font-bold text-gray-900">
-            ${stats.netWorth?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+            ${(stats.totalCash + totalInvestments).toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
@@ -43,33 +47,33 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-sm text-gray-600 mb-1">Investments</p>
+          <p className="text-sm text-gray-600 mb-1">Total Investments</p>
           <p className="text-3xl font-bold text-blue-600">
-            ${stats.investments?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+            ${totalInvestments.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </p>
         </div>
       </div>
 
-      {/* Spending Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-sm text-gray-600 mb-1">Average Monthly Spend</p>
-          <p className="text-2xl font-bold text-red-600">
-            ${stats.avgMonthlySpend?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
-          </p>
+      {/* Investment Portfolios */}
+      {investments.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Investment Portfolios</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {investments.map((portfolio: any) => (
+              <InvestmentScorecard
+                key={portfolio.id}
+                portfolio={portfolio}
+                onUpdate={refetchInvestments}
+              />
+            ))}
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-sm text-gray-600 mb-1">Average Yearly Spend</p>
-          <p className="text-2xl font-bold text-red-600">
-            ${stats.avgYearlySpend?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
-          </p>
-        </div>
-      </div>
+      )}
 
-      {/* Accounts List */}
-      <div className="bg-white rounded-lg shadow">
+      {/* Bank Accounts */}
+      <div className="bg-white rounded-lg shadow mb-8">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Accounts</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Bank Accounts</h2>
         </div>
         <div className="divide-y divide-gray-200">
           {accounts.map((account: any) => (
@@ -87,7 +91,7 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link
           href="/upload"
           className="bg-blue-600 text-white p-4 rounded-lg text-center hover:bg-blue-700 transition"

@@ -54,7 +54,7 @@ export default function InvestmentScorecard({
       setShowModal(false);
       setNewValue('');
       setNotes('');
-      onUpdate(); // Refresh data
+      onUpdate();
     } catch (error) {
       console.error('Error updating investment:', error);
       alert('Failed to update investment value');
