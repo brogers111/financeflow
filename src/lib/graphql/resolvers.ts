@@ -107,6 +107,7 @@ export const resolvers = {
         throw new Error('Not authenticated');
       }
 
+      // Get all active accounts
       const accounts = await prisma.financialAccount.findMany({
         where: { 
           isActive: true,
@@ -114,22 +115,117 @@ export const resolvers = {
         }
       });
 
+      // Calculate total cash (checking, savings, cash accounts)
       const totalCash = accounts
         .filter(a => a.type === AccountType.CHECKING || a.type === AccountType.SAVINGS || a.type === AccountType.CASH)
         .reduce((sum, a) => sum + a.balance, 0);
 
+      // Get investment portfolios
       const investmentPortfolios = await prisma.investmentPortfolio.findMany({
         where: { userId: context.user.id }
       });
 
       const investments = investmentPortfolios.reduce((sum, p) => sum + p.currentValue, 0);
-
       const netWorth = totalCash + investments;
 
+      // Get current month and last month dates
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+      // Calculate LAST MONTH income (most recent complete month)
+      const lastMonthIncome = await prisma.transaction.aggregate({
+        where: {
+          type: TransactionType.INCOME,
+          date: { 
+            gte: lastMonthStart,
+            lte: lastMonthEnd
+          },
+          account: { userId: context.user.id }
+        },
+        _sum: { amount: true }
+      });
+
+      // Calculate LAST MONTH expenses
+      const lastMonthExpenses = await prisma.transaction.aggregate({
+        where: {
+          type: TransactionType.EXPENSE,
+          date: { 
+            gte: lastMonthStart,
+            lte: lastMonthEnd
+          },
+          account: { userId: context.user.id }
+        },
+        _sum: { amount: true }
+      });
+
+      // Calculate MONTH BEFORE LAST income (for comparison)
+      const monthBeforeLastStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      const monthBeforeLastEnd = new Date(now.getFullYear(), now.getMonth() - 1, 0, 23, 59, 59);
+
+      const monthBeforeIncome = await prisma.transaction.aggregate({
+        where: {
+          type: TransactionType.INCOME,
+          date: { 
+            gte: monthBeforeLastStart,
+            lte: monthBeforeLastEnd
+          },
+          account: { userId: context.user.id }
+        },
+        _sum: { amount: true }
+      });
+
+      const monthBeforeExpenses = await prisma.transaction.aggregate({
+        where: {
+          type: TransactionType.EXPENSE,
+          date: { 
+            gte: monthBeforeLastStart,
+            lte: monthBeforeLastEnd
+          },
+          account: { userId: context.user.id }
+        },
+        _sum: { amount: true }
+      });
+
+      // Calculate month-over-month changes
+      const lastMonthIncomeTotal = lastMonthIncome._sum.amount || 0;
+      const lastMonthExpensesTotal = Math.abs(lastMonthExpenses._sum.amount || 0);
+      const monthBeforeIncomeTotal = monthBeforeIncome._sum.amount || 0;
+      const monthBeforeExpensesTotal = Math.abs(monthBeforeExpenses._sum.amount || 0);
+
+      const incomeChange = monthBeforeIncomeTotal > 0 
+        ? ((lastMonthIncomeTotal - monthBeforeIncomeTotal) / monthBeforeIncomeTotal) * 100 
+        : 0;
+      
+      const expensesChange = monthBeforeExpensesTotal > 0 
+        ? ((lastMonthExpensesTotal - monthBeforeExpensesTotal) / monthBeforeExpensesTotal) * 100 
+        : 0;
+
+      // Get cash balance from one month ago for MoM change
+      // This is approximate - we'd need historical snapshots for exact values
+      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      const cashOneMonthAgo = totalCash; // TODO: Implement historical balance tracking
+      const cashChange = 0; // TODO: Calculate when we have historical data
+
+      // Investment MoM change - get from investment snapshots
+      const investmentSnapshots = await prisma.investmentSnapshot.findMany({
+        where: {
+          portfolio: { userId: context.user.id },
+          date: { gte: lastMonthStart }
+        },
+        orderBy: { date: 'desc' }
+      });
+
+      const investmentChange = 0; // TODO: Calculate from snapshots
+
+      const netWorthChange = 0; // TODO: Calculate when we have historical data
+
+      // Calculate average spending (last 12 months)
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-      const expenses = await prisma.transaction.aggregate({
+      const yearExpenses = await prisma.transaction.aggregate({
         where: {
           type: TransactionType.EXPENSE,
           date: { gte: oneYearAgo },
@@ -138,7 +234,7 @@ export const resolvers = {
         _sum: { amount: true }
       });
 
-      const totalExpenses = Math.abs(expenses._sum.amount || 0);
+      const totalExpenses = Math.abs(yearExpenses._sum.amount || 0);
       const avgMonthlySpend = totalExpenses / 12;
       const avgYearlySpend = totalExpenses;
 
@@ -146,6 +242,13 @@ export const resolvers = {
         totalCash,
         investments,
         netWorth,
+        lastMonthIncome: lastMonthIncomeTotal,
+        lastMonthExpenses: lastMonthExpensesTotal,
+        incomeChange,
+        expensesChange,
+        cashChange,
+        investmentChange,
+        netWorthChange,
         avgMonthlySpend,
         avgYearlySpend
       };

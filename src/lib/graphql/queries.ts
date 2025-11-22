@@ -97,6 +97,13 @@ export const GET_DASHBOARD_STATS = gql`
       totalCash
       investments
       netWorth
+      lastMonthIncome
+      lastMonthExpenses
+      incomeChange
+      expensesChange
+      cashChange
+      investmentChange
+      netWorthChange
       avgMonthlySpend
       avgYearlySpend
     }

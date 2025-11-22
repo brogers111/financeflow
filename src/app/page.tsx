@@ -26,10 +26,11 @@ export default function Dashboard() {
     0
   );
 
-  // Calculate month-over-month changes (placeholder - we'll implement this properly later)
-  const cashChange = 5.2; // TODO: Calculate from historical data
-  const investmentChange = 3.8; // TODO: Calculate from historical data
-  const netWorthChange = 4.5; // TODO: Calculate from historical data
+  const incomeChange = stats.incomeChange || 0;
+  const expensesChange = stats.expensesChange || 0;
+  const cashChange = stats.cashChange || 0;
+  const investmentChange = stats.investmentChange || 0;
+  const netWorthChange = stats.netWorthChange || 0;
 
   return (
     <div className="flex gap-6 p-6 max-w-full">
@@ -41,31 +42,45 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           {/* Monthly Income */}
           <div className="bg-white p-4 rounded-lg shadow">
-            <p className="text-xs text-gray-500 mb-1">Most Recent Month Income</p>
+            <p className="text-xs text-gray-500 mb-1">Last Month Income</p>
             <p className="text-2xl font-bold text-gray-900">
-              ${stats.avgMonthlyIncome?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+              ${stats.lastMonthIncome?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
             </p>
+            <div className="flex items-center gap-1 mt-1">
+              {incomeChange >= 0 ? (
+                <span className="text-green-600 text-xs">↑ {incomeChange.toFixed(1)}%</span>
+              ) : (
+                <span className="text-red-600 text-xs">↓ {Math.abs(incomeChange.toFixed(1))}%</span>
+              )}
+            </div>
           </div>
 
           {/* Monthly Expenses */}
           <div className="bg-white p-4 rounded-lg shadow">
-            <p className="text-xs text-gray-500 mb-1">Most Recent Month Expenses</p>
+            <p className="text-xs text-gray-500 mb-1">Last Month Expenses</p>
             <p className="text-2xl font-bold text-gray-900">
-              ${stats.avgMonthlySpend?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+              ${stats.lastMonthExpenses?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
             </p>
+            <div className="flex items-center gap-1 mt-1">
+              {expensesChange >= 0 ? (
+                <span className="text-green-600 text-xs">↑ {expensesChange.toFixed(1)}%</span>
+              ) : (
+                <span className="text-red-600 text-xs">↓ {Math.abs(expensesChange.toFixed(1))}%</span>
+              )}
+            </div>
           </div>
 
           {/* Total Cash */}
           <div className="bg-white p-4 rounded-lg shadow">
-            <p className="text-xs text-gray-500 mb-1">Cash</p>
+            <p className="text-xs text-gray-500 mb-1">Total Cash</p>
             <p className="text-2xl font-bold text-green-600">
               ${stats.totalCash?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
             </p>
             <div className="flex items-center gap-1 mt-1">
               {cashChange >= 0 ? (
-                <span className="text-green-600 text-xs">↑ {cashChange}%</span>
+                <span className="text-green-600 text-xs">↑ {cashChange.toFixed(1)}%</span>
               ) : (
-                <span className="text-red-600 text-xs">↓ {Math.abs(cashChange)}%</span>
+                <span className="text-red-600 text-xs">↓ {Math.abs(cashChange.toFixed(1))}%</span>
               )}
             </div>
           </div>
@@ -78,9 +93,9 @@ export default function Dashboard() {
             </p>
             <div className="flex items-center gap-1 mt-1">
               {investmentChange >= 0 ? (
-                <span className="text-green-600 text-xs">↑ {investmentChange}%</span>
+                <span className="text-green-600 text-xs">↑ {investmentChange.toFixed(1)}%</span>
               ) : (
-                <span className="text-red-600 text-xs">↓ {Math.abs(investmentChange)}%</span>
+                <span className="text-red-600 text-xs">↓ {Math.abs(investmentChange.toFixed(1))}%</span>
               )}
             </div>
           </div>
@@ -93,9 +108,9 @@ export default function Dashboard() {
             </p>
             <div className="flex items-center gap-1 mt-1">
               {netWorthChange >= 0 ? (
-                <span className="text-green-600 text-xs">↑ {netWorthChange}%</span>
+                <span className="text-green-600 text-xs">↑ {netWorthChange.toFixed(1)}%</span>
               ) : (
-                <span className="text-red-600 text-xs">↓ {Math.abs(netWorthChange)}%</span>
+                <span className="text-red-600 text-xs">↓ {Math.abs(netWorthChange.toFixed(1))}%</span>
               )}
             </div>
           </div>

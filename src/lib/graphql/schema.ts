@@ -99,6 +99,13 @@ export const typeDefs = gql`
     totalCash: Float!
     investments: Float!
     netWorth: Float!
+    lastMonthIncome: Float!
+    lastMonthExpenses: Float!
+    incomeChange: Float!
+    expensesChange: Float!
+    cashChange: Float!
+    investmentChange: Float!
+    netWorthChange: Float!
     avgMonthlySpend: Float!
     avgYearlySpend: Float!
   }
