@@ -102,18 +102,27 @@ export const resolvers = {
     },
 
     // Fetch dashboard stats
-    dashboardStats: async () => {
+    dashboardStats: async (_parent: unknown, _args: unknown, context: any) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
       const accounts = await prisma.financialAccount.findMany({
-        where: { isActive: true }
+        where: { 
+          isActive: true,
+          userId: context.user.id
+        }
       });
 
       const totalCash = accounts
         .filter(a => a.type === AccountType.CHECKING || a.type === AccountType.SAVINGS || a.type === AccountType.CASH)
         .reduce((sum, a) => sum + a.balance, 0);
 
-      const investments = accounts
-        .filter(a => a.type === AccountType.INVESTMENT)
-        .reduce((sum, a) => sum + a.balance, 0);
+      const investmentPortfolios = await prisma.investmentPortfolio.findMany({
+        where: { userId: context.user.id }
+      });
+
+      const investments = investmentPortfolios.reduce((sum, p) => sum + p.currentValue, 0);
 
       const netWorth = totalCash + investments;
 
@@ -123,7 +132,8 @@ export const resolvers = {
       const expenses = await prisma.transaction.aggregate({
         where: {
           type: TransactionType.EXPENSE,
-          date: { gte: oneYearAgo }
+          date: { gte: oneYearAgo },
+          account: { userId: context.user.id }
         },
         _sum: { amount: true }
       });
@@ -280,8 +290,13 @@ export const resolvers = {
       };
     },
 
-    investmentPortfolios: async () => {
+    investmentPortfolios: async (_parent: unknown, _args: unknown, context: any) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
       return prisma.investmentPortfolio.findMany({
+        where: { userId: context.user.id },  // Only user's portfolios
         include: {
           valueHistory: {
             orderBy: { date: 'desc' }
@@ -721,12 +736,13 @@ export const resolvers = {
         type: string;
         institution: string;
         currentValue?: number;
-      }
+      },
+      context: any
     ) => {
-      // For now, we'll need to get the userId from somewhere
-      // You might want to pass it in or get it from auth context
-      const user = await prisma.user.findFirst();
-      if (!user) throw new Error('No user found');
+        // Get user from auth context
+        if (!context.user?.id) {
+          throw new Error('Not authenticated');
+        }
 
       const portfolio = await prisma.investmentPortfolio.create({
         data: {
@@ -734,7 +750,7 @@ export const resolvers = {
           type,
           institution,
           currentValue: currentValue || 0,
-          userId: user.id
+          userId: context.user.id
         },
         include: {
           valueHistory: true

@@ -9,6 +9,15 @@ const pwaConfig = withPWA({
 });
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        pathname: '/**'
+      }
+    ]
+  },
   reactStrictMode: true,
   turbopack: {},
   webpack: (config, { isServer }) => {

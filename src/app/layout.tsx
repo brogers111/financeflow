@@ -33,13 +33,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Providers>
-          <Navigation />
-          <main className="min-h-screen">
-            {children}
-          </main>
+          <div className="flex">
+            <Navigation />
+            <main className="min-h-screen">
+              {children}
+            </main>
+          </div>
         </Providers>
       </body>
     </html>

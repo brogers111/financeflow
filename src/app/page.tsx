@@ -2,13 +2,15 @@
 
 import { useQuery } from '@apollo/client';
 import { GET_DASHBOARD_STATS, GET_ACCOUNTS, GET_INVESTMENT_PORTFOLIOS } from '@/lib/graphql/queries';
-import Link from 'next/link';
 import InvestmentScorecard from '@/components/InvestmentScorecard';
 
 export default function Dashboard() {
   const { data: statsData, loading: statsLoading } = useQuery(GET_DASHBOARD_STATS);
   const { data: accountsData, loading: accountsLoading } = useQuery(GET_ACCOUNTS);
   const { data: investmentsData, loading: investmentsLoading, refetch: refetchInvestments } = useQuery(GET_INVESTMENT_PORTFOLIOS);
+
+  console.log(accountsData);
+  console.log(statsData);
 
   if (statsLoading || accountsLoading || investmentsLoading) {
     return (
@@ -37,7 +39,7 @@ export default function Dashboard() {
         <div className="bg-white p-6 rounded-lg shadow">
           <p className="text-sm text-gray-600 mb-1">Net Worth</p>
           <p className="text-3xl font-bold text-gray-900">
-            ${(stats.totalCash + totalInvestments).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            ${(stats.netWorth)?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
@@ -88,28 +90,6 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link
-          href="/upload"
-          className="bg-blue-600 text-white p-4 rounded-lg text-center hover:bg-blue-700 transition"
-        >
-          📤 Upload Statement
-        </Link>
-        <Link
-          href="/transactions"
-          className="bg-purple-600 text-white p-4 rounded-lg text-center hover:bg-purple-700 transition"
-        >
-          💳 Review Transactions
-        </Link>
-        <Link
-          href="/accounts"
-          className="bg-green-600 text-white p-4 rounded-lg text-center hover:bg-green-700 transition"
-        >
-          🏦 Manage Accounts
-        </Link>
       </div>
     </div>
   );
