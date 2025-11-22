@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Sour_Gummy, Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
-import Navigation from "@/components/Navigation";
+import ConditionalNavigation from "@/components/ConditionalNavigation";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const sourGummy = Sour_Gummy({
   subsets: ["latin"],
+  weight: ["100","200","300","400","500","600","700","800","900"],
+  variable: "--font-sour-gummy",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const outfit = Outfit({
   subsets: ["latin"],
+  weight: ["100","200","300","400","500","600","700","800","900"],
+  variable: "--font-outfit",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -32,13 +36,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${sourGummy.variable} ${outfit.variable} font-outfit antialiased`}>
         <Providers>
           <div className="flex">
-            <Navigation />
-            <main className="min-h-screen">
+            <ConditionalNavigation />
+            <main className="flex-1 min-h-screen">
               {children}
             </main>
           </div>

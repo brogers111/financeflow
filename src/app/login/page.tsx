@@ -3,6 +3,7 @@
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const { data: session, status } = useSession();
@@ -23,16 +24,27 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
+    <div className="min-h-screen w-full flex justify-between items-center bg-[#fbfcfb] font-sour">
+      <div className='mx-32 text-3xl font-semibold text-center flex gap-4 flex-col items-center'>
+        <p>They say money talks,</p>
+        <p>but mine just waves goodbye...</p>
+        <Image
+          src="/login-photo.png"
+          alt="Minion Waves Goodbye"
+          className='pt-12'
+          width={300}
+          height={300}
+        />
+      </div>
+      <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full mx-40">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">FinanceFlow</h1>
-          <p className="text-gray-600">Track your money, grow your wealth</p>
+          <p className="text-gray-600">A Simpler Way to Track Your Money</p>
         </div>
 
         <button
           onClick={() => signIn('google', { callbackUrl: '/' })}
-          className="w-full bg-white border-2 border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 transition flex items-center justify-center gap-3"
+          className="w-full bg-white border-2 border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-200 transition flex items-center justify-center gap-3 cursor-pointer"
         >
           <svg className="w-6 h-6" viewBox="0 0 24 24">
             <path
@@ -54,10 +66,6 @@ export default function LoginPage() {
           </svg>
           Sign in with Google
         </button>
-
-        <p className="text-sm text-gray-500 text-center mt-6">
-          Your financial data stays private and secure
-        </p>
       </div>
     </div>
   );

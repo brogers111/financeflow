@@ -8,10 +8,10 @@ export default {
   ],
   theme: {
     extend: {
-      colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
-      },
+      fontFamily: {
+        sour: ["var(--font-sour-gummy)", "sans-serif"],
+        outfit: ["var(--font-outfit)", "sans-serif"],
+      }
     },
   },
   plugins: [],

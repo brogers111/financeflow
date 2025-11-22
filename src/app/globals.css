@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+@layer utilities {
+  .font-sour {
+    font-family: var(--font-sour-gummy), sans-serif;
+  }
+  
+  .font-outfit {
+    font-family: var(--font-outfit), sans-serif;
+  }
+}
