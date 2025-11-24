@@ -17,7 +17,7 @@ export default function Navigation() {
   ];
 
   return (
-    <nav className="sticky top-6 bg-black shadow-md ml-4 my-6 p-3 rounded-2xl h-[calc(100vh-3rem)] flex flex-col">
+    <nav className="sticky top-6 border-2 border-[#E8ECED] ml-4 my-6 p-3 rounded-2xl h-[calc(100vh-3rem)] flex flex-col">
       <div className="flex flex-col items-center mb-6">
         {session?.user && (
           <div className="my-4">
@@ -43,10 +43,10 @@ export default function Navigation() {
           <Link
             key={item.href}
             href={item.href}
-            className={`px-3 py-2 rounded-md transition cursor-pointer ${
+            className={`px-2 py-2 rounded-md flex justify-center items-center transition cursor-pointer ${
               pathname === item.href
-                ? 'bg-gray-800'
-                : 'hover:bg-gray-700'
+                ? 'border-2 border-gray-200'
+                : 'hover:bg-gray-100'
             }`}
             title={item.label}
           >
