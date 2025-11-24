@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
-import { UPLOAD_STATEMENT, CATEGORIZE_WITH_AI } from '@/lib/graphql/queries';
+import Link from 'next/link';
+import { UPLOAD_STATEMENT } from '@/lib/graphql/queries';
 import { GET_ACCOUNTS } from '@/lib/graphql/queries';
 
 type StatementType = 
@@ -17,13 +18,11 @@ export default function UploadStatement() {
   const [accountId, setAccountId] = useState('');
   const [statementType, setStatementType] = useState<StatementType>('CHASE_CHECKING');
   const [uploading, setUploading] = useState(false);
-  const [categorizing, setCategorizing] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [successMessage, setSuccessMessage] = useState('');
 
   const { data: accountsData } = useQuery(GET_ACCOUNTS);
   const [uploadStatement] = useMutation(UPLOAD_STATEMENT);
-  const [categorizeWithAI] = useMutation(CATEGORIZE_WITH_AI);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -38,7 +37,6 @@ export default function UploadStatement() {
     setStatementType('CHASE_CHECKING');
     setResult(null);
     setSuccessMessage('');
-    // Reset file input
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
   };
@@ -90,6 +88,17 @@ export default function UploadStatement() {
 
           setResult(data.uploadStatement);
           setUploading(false);
+          
+          // Show success message
+          const uncategorizedCount = data.uploadStatement.needsCategorization?.length || 0;
+          setSuccessMessage(
+            `Successfully uploaded ${data.uploadStatement.transactionsCreated} transactions! ${
+              uncategorizedCount > 0 
+                ? `${uncategorizedCount} transactions need manual categorization.` 
+                : 'All transactions were automatically categorized!'
+            }`
+          );
+          setResult(null);
         } catch (uploadError) {
           console.error('Upload mutation error:', uploadError);
           alert(`Upload failed: ${uploadError}`);
@@ -108,50 +117,22 @@ export default function UploadStatement() {
     }
   };
 
-  const handleAICategorization = async () => {
-    if (!result?.needsCategorization?.length) return;
-
-    setCategorizing(true);
-    try {
-      const transactionIds = result.needsCategorization.map((t: any) => t.id);
-      
-      const { data } = await categorizeWithAI({
-        variables: { transactionIds }
-      });
-
-      setCategorizing(false);
-      setSuccessMessage(
-        `✅ Successfully uploaded ${result.transactionsCreated} transactions and AI categorized ${data.categorizeTransactionsWithAI.categorized} of ${data.categorizeTransactionsWithAI.total} uncategorized transactions!`
-      );
-      setResult(null);
-    } catch (error) {
-      console.error('AI categorization error:', error);
-      alert('Failed to categorize with AI');
-      setCategorizing(false);
-    }
-  };
-
-  const handleSkipCategorization = () => {
-    setSuccessMessage(
-      `✅ Successfully added ${result.transactionsCreated} transactions! ${result.needsCategorization?.length || 0} transactions need manual categorization.`
-    );
-    setResult(null);
-  };
-
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-md">
+    <div className="max-w-2xl mx-auto p-6">
       <h2 className="text-2xl font-bold mb-6">Upload Bank Statement</h2>
-
       {/* Success Message */}
       {successMessage && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
-          <p className="text-green-800 font-medium">{successMessage}</p>
-          <button
-            onClick={resetForm}
-            className="mt-3 text-green-700 underline hover:text-green-900"
-          >
-            Upload another statement
-          </button>
+        <div className="my-6 p-4 bg-green-50 border border-green-200 rounded-md">
+          <p className="text-green-800 font-medium text-center">{successMessage}</p>
+          <div className='flex gap-4'>
+            <button
+              onClick={resetForm}
+              className="w-1/2 mt-3 mx-auto py-2 px-4 rounded-md cursor-pointer border-2 border-green-700 hover:bg-green-100 text-green-700 text-center block"
+            >
+              Upload another statement
+            </button>
+            <Link href="/transactions" className='w-1/2 mt-3 mx-auto py-2 px-4 rounded-md cursor-pointer bg-black text-white text-center block'>Categorize Transactions</Link>
+          </div>
         </div>
       )}
 
@@ -159,11 +140,11 @@ export default function UploadStatement() {
         <>
           {/* Account Selection */}
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Account</label>
+            <label className="block text-md font-medium mb-2">Account</label>
             <select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
-              className="w-full p-2 border rounded-md"
+              className="w-full p-2 border border-gray-300 rounded-md cursor-pointer"
             >
               <option value="">Select an account</option>
               {accountsData?.accounts?.map((account: any) => (
@@ -176,11 +157,11 @@ export default function UploadStatement() {
 
           {/* Statement Type Selection */}
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Statement Type</label>
+            <label className="block text-md font-medium mb-2">Statement Type</label>
             <select
               value={statementType}
               onChange={(e) => setStatementType(e.target.value as StatementType)}
-              className="w-full p-2 border rounded-md"
+              className="w-full p-2 border border-gray-300 rounded-md cursor-pointer"
             >
               <option value="CHASE_CHECKING">Chase Checking</option>
               <option value="CHASE_PERSONAL_SAVINGS">Chase Personal Savings</option>
@@ -192,93 +173,30 @@ export default function UploadStatement() {
 
           {/* File Upload */}
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">PDF Statement</label>
+            <label className="block text-md font-medium mb-2">PDF Statement</label>
+            <label
+              htmlFor="pdf-upload"
+              className="block text-center w-full p-2 border border-gray-300 rounded-md bg-white cursor-pointer hover:bg-gray-50 text-gray-700"
+            >
+              {selectedFile ? selectedFile.name : "Select a PDF file..."}
+            </label>
             <input
+              id="pdf-upload"
               type="file"
               accept=".pdf"
               onChange={handleFileChange}
-              className="w-full p-2 border rounded-md"
+              className="hidden"
             />
-            {selectedFile && (
-              <p className="text-sm text-gray-600 mt-1">
-                Selected: {selectedFile.name}
-              </p>
-            )}
           </div>
 
           {/* Upload Button */}
           <button
             onClick={handleUpload}
             disabled={uploading || !selectedFile || !accountId}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="w-full bg-black text-white py-2 px-4 rounded-md cursor-pointer disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {uploading ? 'Processing PDF...' : 'Upload Statement'}
           </button>
-
-          {/* Results */}
-          {result && (
-            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
-              <h3 className="font-semibold text-green-800 mb-2">Upload Successful!</h3>
-              <p className="text-sm text-green-700 mb-4">
-                ✅ Created {result.transactionsCreated} transactions
-              </p>
-              
-              {result.needsCategorization?.length > 0 ? (
-                <div>
-                  <p className="text-sm text-orange-700 mb-3">
-                    ⚠️ {result.needsCategorization.length} transactions need categorization
-                  </p>
-                  
-                  <div className="flex gap-3 mb-4">
-                    <button
-                      onClick={handleAICategorization}
-                      disabled={categorizing}
-                      className="flex-1 bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 disabled:bg-purple-400 text-sm"
-                    >
-                      {categorizing ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          Categorizing with AI...
-                        </span>
-                      ) : (
-                        '🤖 Categorize with AI'
-                      )}
-                    </button>
-                    <button
-                      onClick={handleSkipCategorization}
-                      disabled={categorizing}
-                      className="flex-1 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 disabled:bg-gray-400 text-sm"
-                    >
-                      Skip (Categorize Manually)
-                    </button>
-                  </div>
-                  
-                  <div className="max-h-40 overflow-y-auto bg-white rounded border">
-                    {result.needsCategorization.map((t: any) => (
-                      <div key={t.id} className="text-xs text-gray-600 py-2 px-3 border-b last:border-0">
-                        {t.description} - ${Math.abs(t.amount).toFixed(2)}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm text-green-700 mb-3">
-                    🎉 All transactions were automatically categorized!
-                  </p>
-                  <button
-                    onClick={handleSkipCategorization}
-                    className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 text-sm"
-                  >
-                    Done
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </>
       )}
     </div>

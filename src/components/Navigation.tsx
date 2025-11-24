@@ -22,17 +22,21 @@ export default function Navigation() {
         {session?.user && (
           <div className="my-4">
             {session.user.image ? (
-              <Image
-                src={session.user.image}
-                alt={session.user.name || 'User'}
-                width={50}
-                height={50}
-                className="rounded-full"
-              />
+              <Link href="/">
+                <Image
+                  src={session.user.image}
+                  alt={session.user.name || 'User'}
+                  width={50}
+                  height={50}
+                  className="rounded-full"
+                />
+              </Link>
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center text-white font-semibold">
-                {session.user.name?.[0] || session.user.email?.[0] || 'U'}
-              </div>
+              <Link href="/">
+                <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center text-white font-semibold">
+                  {session.user.name?.[0] || session.user.email?.[0] || 'U'}
+                </div>
+              </Link>
             )}
           </div>
         )}
@@ -43,10 +47,10 @@ export default function Navigation() {
           <Link
             key={item.href}
             href={item.href}
-            className={`px-2 py-2 rounded-md flex justify-center items-center transition cursor-pointer ${
+            className={`px-2 py-2 rounded-md flex justify-center items-center transition cursor-pointer border-2 ${
               pathname === item.href
-                ? 'border-2 border-gray-200'
-                : 'hover:bg-gray-100'
+                ? 'border-black'
+                : 'border-transparent hover:border-gray-100'
             }`}
             title={item.label}
           >
@@ -64,7 +68,7 @@ export default function Navigation() {
         {session?.user && (
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
-            className="my-2 px-3 py-2 rounded-md hover:bg-red-900 transition cursor-pointer"
+            className="my-2 px-3 py-2 rounded-md border-2 border-transparent hover:border-2 hover:border-red-200 transition cursor-pointer"
             title="Sign Out"
           >
             <Image 

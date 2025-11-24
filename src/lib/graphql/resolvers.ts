@@ -541,7 +541,27 @@ export const resolvers = {
     },
 
     // Categorize transaction
-    categorizeTransaction: async (_parent: unknown, { id, categoryId }: { id: string; categoryId: string }) => {
+    categorizeTransaction: async (
+      _parent: unknown, 
+      { id, categoryId }: { id: string; categoryId: string },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      // Verify the transaction belongs to the user
+      const existingTransaction = await prisma.transaction.findFirst({
+        where: {
+          id,
+          account: { userId: context.user.id }
+        }
+      });
+
+      if (!existingTransaction) {
+        throw new Error('Transaction not found or access denied');
+      }
+
       const transaction = await prisma.transaction.update({
         where: { id },
         data: {
@@ -569,9 +589,11 @@ export const resolvers = {
             descriptionPattern: pattern,
             categoryId,
             confidence: 1.0,
-            timesUsed: 1
+            timesUsed: 1,
+            userId: context.user.id
           }
         });
+        
         console.log(`Transaction ${id} categorized to category ${categoryId}. Pattern: ${pattern}`);
       }
 
@@ -635,15 +657,33 @@ export const resolvers = {
 
     // Upload statement
     uploadStatement: async (
-      _parent: unknown, 
-      { fileContent, accountId, statementType }: { 
-        fileContent: string; 
-        accountId: string; 
+      _parent: unknown,
+      { fileContent, accountId, statementType }: {
+        fileContent: string;
+        accountId: string;
         statementType: 'CHASE_CREDIT' | 'CHASE_CHECKING' | 'CHASE_PERSONAL_SAVINGS' | 'CHASE_BUSINESS_SAVINGS' | 'CAPITAL_ONE_SAVINGS';
-      }
+      },
+      context: any
     ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
       try {
+        // Verify account belongs to user
+        const account = await prisma.financialAccount.findFirst({
+          where: {
+            id: accountId,
+            userId: context.user.id
+          }
+        });
+
+        if (!account) {
+          throw new Error('Account not found or access denied');
+        }
+
         const patterns = await prisma.categorizationPattern.findMany({
+          where: { userId: context.user.id },
           orderBy: { confidence: 'desc' }
         });
 
@@ -656,22 +696,44 @@ export const resolvers = {
 
         let transactionsCreated = 0;
 
-        // Call the parsing API route instead of importing directly
-        const parseResponse = await fetch('http://localhost:3000/api/parse-pdf', {
+        // Call the parsing API route
+        const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+        const parseResponse = await fetch(`${baseUrl}/api/parse-pdf`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            buffer: fileContent,
+            fileContent,
             statementType
           })
         });
 
+        console.log('📡 Parse API response status:', parseResponse.status);
+        console.log('📡 Parse API response headers:', Object.fromEntries(parseResponse.headers.entries()));
+
         if (!parseResponse.ok) {
-          const error = await parseResponse.json();
-          throw new Error(error.error || 'Failed to parse PDF');
+          const contentType = parseResponse.headers.get('content-type');
+          let errorMessage;
+          
+          if (contentType?.includes('application/json')) {
+            const errorJson = await parseResponse.json();
+            errorMessage = errorJson.error || 'Unknown error';
+            console.error('❌ JSON error response:', errorJson);
+          } else {
+            const errorText = await parseResponse.text();
+            errorMessage = errorText.substring(0, 500); // First 500 chars
+            console.error('❌ Non-JSON error response:', errorText.substring(0, 200));
+          }
+          
+          throw new Error(`PDF parsing failed: ${errorMessage}`);
         }
 
-        const { transactions, endingBalance } = await parseResponse.json();
+        const parseResult = await parseResponse.json();
+        
+        if (parseResult.error) {
+          throw new Error(parseResult.error);
+        }
+
+        const { transactions, endingBalance } = parseResult;
 
         console.log(`✅ Parsed ${transactions.length} transactions from ${statementType}`);
         console.log(`✅ Ending balance from statement: ${endingBalance}`);
@@ -684,9 +746,9 @@ export const resolvers = {
           console.log(`📅 Statement end date: ${statementEndDate.toISOString()}`);
         }
 
-        // Process each transaction (same as before)
+        // Process each transaction
         for (const txn of transactions) {
-          const matchingPattern = patterns.find(p => 
+          const matchingPattern = patterns.find(p =>
             txn.description.toUpperCase().includes(p.descriptionPattern)
           );
 
@@ -736,7 +798,7 @@ export const resolvers = {
             needsCategorization.push(uncategorized);
           }
         }
-        
+
         // Only update account balance if this statement is newer than existing transactions
         if (statementEndDate && endingBalance !== 0) {
           // Get the most recent transaction date for this account
@@ -746,7 +808,7 @@ export const resolvers = {
             select: { date: true }
           });
 
-          const shouldUpdateBalance = !mostRecentTransaction || 
+          const shouldUpdateBalance = !mostRecentTransaction ||
             statementEndDate >= mostRecentTransaction.date;
 
           if (shouldUpdateBalance) {
@@ -773,63 +835,10 @@ export const resolvers = {
           }))
         };
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('Statement upload error:', error);
-        throw new Error(`Failed to process statement: ${error}`);
+        throw new Error(`Failed to process statement: ${error.message || error}`);
       }
-    },
-
-    categorizeTransactionsWithAI: async (
-      _parent: unknown,
-      { transactionIds }: { transactionIds: string[] }
-    ) => {
-      const { categorizeBatch } = await import('@/lib/ollama');
-      
-      const transactions = await prisma.transaction.findMany({
-        where: { id: { in: transactionIds } }
-      });
-
-      const results = await categorizeBatch(
-        transactions.map(t => ({ description: t.description, amount: t.amount }))
-      );
-
-      let categorized = 0;
-
-      for (let i = 0; i < transactions.length; i++) {
-        const result = results[i];
-        if (result.categoryId && result.confidence > 0.6) {
-          await prisma.transaction.update({
-            where: { id: transactions[i].id },
-            data: { 
-              categoryId: result.categoryId,
-              confidence: result.confidence
-            }
-          });
-
-          // Learn from this categorization
-          await prisma.categorizationPattern.upsert({
-            where: { descriptionPattern: transactions[i].description.toUpperCase() },
-            update: {
-              timesUsed: { increment: 1 },
-              lastUsed: new Date()
-            },
-            create: {
-              descriptionPattern: transactions[i].description.toUpperCase(),
-              categoryId: result.categoryId,
-              confidence: result.confidence,
-              timesUsed: 1
-            }
-          });
-
-          categorized++;
-        }
-      }
-
-      return {
-        success: true,
-        categorized,
-        total: transactions.length
-      };
     },
 
     createInvestmentPortfolio: async (

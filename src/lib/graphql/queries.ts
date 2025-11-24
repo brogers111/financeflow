@@ -236,16 +236,6 @@ export const CATEGORIZE_TRANSACTION = gql`
   }
 `;
 
-export const CATEGORIZE_WITH_AI = gql`
-  mutation CategorizeTransactionsWithAI($transactionIds: [ID!]!) {
-    categorizeTransactionsWithAI(transactionIds: $transactionIds) {
-      success
-      categorized
-      total
-    }
-  }
-`;
-
 export const CREATE_CATEGORY = gql`
   mutation CreateCategory($input: CategoryInput!) {
     createCategory(input: $input) {

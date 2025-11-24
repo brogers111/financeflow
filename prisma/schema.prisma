@@ -14,14 +14,14 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
-  accounts      Account[] // NextAuth OAuth accounts
+  accounts      Account[]
   sessions      Session[]
 
-  // Link to financial accounts
-  financialAccounts FinancialAccount[]
-
-  // Link to investment portfolios
-  investmentPortfolios InvestmentPortfolio[]
+  financialAccounts      FinancialAccount[]
+  investmentPortfolios   InvestmentPortfolio[]
+  categorizationPatterns CategorizationPattern[]
+  paychecks              Paycheck[]
+  healthMetrics          HealthMetric[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -45,7 +45,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
-  @@map("UserAccount") // Maps to your existing UserAccount table
+  @@map("UserAccount")
 }
 
 model Session {
@@ -64,7 +64,7 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Financial models - your bank accounts
+// Financial models
 model FinancialAccount {
   id          String      @id @default(uuid())
   userId      String
@@ -141,7 +141,8 @@ model Category {
 
   transactions Transaction[]
 
-  createdAt DateTime @default(now())
+  createdAt              DateTime                @default(now())
+  categorizationPatterns CategorizationPattern[]
 
   @@index([type])
 }
@@ -159,15 +160,21 @@ model BalanceSnapshot {
 
 model Paycheck {
   id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   amount    Float
   date      DateTime
   accountId String
 
   createdAt DateTime @default(now())
+
+  @@index([userId, date])
 }
 
 model HealthMetric {
   id     String   @id @default(uuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   date   DateTime
   type   String
   value  Float
@@ -183,9 +190,14 @@ model CategorizationPattern {
   id                 String   @id @default(uuid())
   descriptionPattern String   @unique
   categoryId         String
-  confidence         Float    @default(1.0)
+  category           Category @relation(fields: [categoryId], references: [id])
+  confidence         Float    @default(0.7)
   timesUsed          Int      @default(0)
   lastUsed           DateTime @default(now())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@index([descriptionPattern])
 }

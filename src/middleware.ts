@@ -15,20 +15,20 @@ export default withAuth(
   }
 );
 
-// Protect all routes except login, auth endpoints, and static files
+// Protect all routes except login, auth endpoints, and API routes
 export const config = {
   matcher: [
     /*
      * Match all request paths except:
      * - /login (login page)
      * - /api/auth (NextAuth endpoints)
-     * - /api/parse-pdf (PDF parsing - needs auth but handled separately)
-     * - /api/graphql (GraphQL - needs auth but handled separately)
+     * - /api/parse-pdf (PDF parsing - called from GraphQL which is already authenticated)
+     * - /api/graphql (GraphQL - has its own auth)
      * - /_next/static (static files)
      * - /_next/image (image optimization files)
      * - /favicon.ico, /robots.txt (metadata files)
      * - /*.svg, /*.png, /*.jpg (image files)
      */
-    '/((?!login|api/auth|_next/static|_next/image|favicon.ico|robots.txt|.*\\.svg|.*\\.png|.*\\.jpg).*)',
+    '/((?!login|api/auth|api/parse-pdf|api/graphql|_next/static|_next/image|favicon.ico|robots.txt|.*\\.svg|.*\\.png|.*\\.jpg).*)',
   ],
 };
