@@ -36,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${sourGummy.variable} ${outfit.variable} font-outfit antialiased`}>
+      <body className={`${sourGummy.variable} ${outfit.variable} font-outfit antialiased bg-[#282427]`}>
         <Providers>
           <div className="flex">
             <ConditionalNavigation />

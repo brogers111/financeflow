@@ -239,6 +239,7 @@ export const typeDefs = gql`
     type: TransactionType!
     categoryId: ID
     notes: String
+    wasManual: Boolean
   }
 
   input UpdateTransactionInput {

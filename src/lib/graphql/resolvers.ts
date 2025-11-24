@@ -464,33 +464,40 @@ export const resolvers = {
     },
 
     // Create transaction
-    createTransaction: async (_parent: unknown, { input }: { input: TransactionInput }) => {
+    createTransaction: async (
+      _parent: unknown,
+      { input }: { input: any },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      // Verify account belongs to user
+      const account = await prisma.financialAccount.findFirst({
+        where: {
+          id: input.accountId,
+          userId: context.user.id
+        }
+      });
+
+      if (!account) {
+        throw new Error('Account not found or access denied');
+      }
+
       const transaction = await prisma.transaction.create({
         data: {
+          accountId: input.accountId,
           date: new Date(input.date),
           description: input.description,
           amount: input.amount,
           type: input.type,
-          wasManual: true,
-          source: 'Manual',
-          notes: input.notes,
-          account: {
-            connect: { id: input.accountId }
-          },
-          category: input.categoryId ? {
-            connect: { id: input.categoryId }
-          } : undefined
+          categoryId: input.categoryId || null,
+          wasManual: input.wasManual || false
         },
-        include: { account: true, category: true }
-      });
-
-      // Update account balance
-      await prisma.financialAccount.update({
-        where: { id: input.accountId },
-        data: {
-          balance: {
-            increment: input.amount
-          }
+        include: {
+          category: true,
+          account: true
         }
       });
 
@@ -694,7 +701,7 @@ export const resolvers = {
           date: Date;
         }> = [];
 
-        let transactionsCreated = 0;
+        let totalTransactionsCreated = 0;
 
         // Call the parsing API route
         const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
@@ -706,9 +713,6 @@ export const resolvers = {
             statementType
           })
         });
-
-        console.log('📡 Parse API response status:', parseResponse.status);
-        console.log('📡 Parse API response headers:', Object.fromEntries(parseResponse.headers.entries()));
 
         if (!parseResponse.ok) {
           const contentType = parseResponse.headers.get('content-type');
@@ -734,9 +738,6 @@ export const resolvers = {
         }
 
         const { transactions, endingBalance } = parseResult;
-
-        console.log(`✅ Parsed ${transactions.length} transactions from ${statementType}`);
-        console.log(`✅ Ending balance from statement: ${endingBalance}`);
 
         // Find the most recent transaction date from this statement
         let statementEndDate: Date | null = null;
@@ -778,7 +779,7 @@ export const resolvers = {
               }
             });
 
-            transactionsCreated++;
+            totalTransactionsCreated++;
           } else {
             const uncategorized = await prisma.transaction.create({
               data: {
@@ -796,6 +797,7 @@ export const resolvers = {
             });
 
             needsCategorization.push(uncategorized);
+            totalTransactionsCreated++;
           }
         }
 
@@ -826,7 +828,7 @@ export const resolvers = {
 
         return {
           success: true,
-          transactionsCreated,
+          transactionsCreated: totalTransactionsCreated,
           needsCategorization: needsCategorization.map(t => ({
             id: t.id,
             description: t.description,

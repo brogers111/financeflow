@@ -88,14 +88,14 @@ export default function TransactionReview() {
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
-      <div className="text-gray-600">Loading transactions...</div>
+      <div className="text-gray-100">Loading transactions...</div>
     </div>
   );
 
   return (
     <div className="min-h-screen p-6">
       <div className="mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+        <h1 className="text-3xl font-bold mb-6 text-[#EEEBD9]">
           Review & Categorize Transactions
         </h1>
         

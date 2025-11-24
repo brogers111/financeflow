@@ -92,7 +92,7 @@ export default function UploadStatement() {
           // Show success message
           const uncategorizedCount = data.uploadStatement.needsCategorization?.length || 0;
           setSuccessMessage(
-            `Successfully uploaded ${data.uploadStatement.transactionsCreated} transactions! ${
+            `Successfully uploaded ${data.uploadStatement.transactionsCreated} transactions!\n\n${
               uncategorizedCount > 0 
                 ? `${uncategorizedCount} transactions need manual categorization.` 
                 : 'All transactions were automatically categorized!'
@@ -118,18 +118,23 @@ export default function UploadStatement() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
+    <div className="max-w-2xl mx-auto p-6 bg-[#EEEBD9] rounded-xl">
       <h2 className="text-2xl font-bold mb-6">Upload Bank Statement</h2>
       {/* Success Message */}
       {successMessage && (
-        <div className="my-6 p-4 bg-green-50 border border-green-200 rounded-md">
-          <p className="text-green-800 font-medium text-center">{successMessage}</p>
+        <div className="mt-2 p-4 rounded-md">
+          <p
+            className="text-green-800 font-medium text-lg text-center mb-4"
+            style={{ whiteSpace: 'pre-line' }}
+          >
+            {successMessage}
+          </p>
           <div className='flex gap-4'>
             <button
               onClick={resetForm}
               className="w-1/2 mt-3 mx-auto py-2 px-4 rounded-md cursor-pointer border-2 border-green-700 hover:bg-green-100 text-green-700 text-center block"
             >
-              Upload another statement
+              Upload Another Statement
             </button>
             <Link href="/transactions" className='w-1/2 mt-3 mx-auto py-2 px-4 rounded-md cursor-pointer bg-black text-white text-center block'>Categorize Transactions</Link>
           </div>
@@ -144,7 +149,7 @@ export default function UploadStatement() {
             <select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md cursor-pointer"
+              className="w-full p-2 border border-[#282427] rounded-md cursor-pointer"
             >
               <option value="">Select an account</option>
               {accountsData?.accounts?.map((account: any) => (
@@ -161,7 +166,7 @@ export default function UploadStatement() {
             <select
               value={statementType}
               onChange={(e) => setStatementType(e.target.value as StatementType)}
-              className="w-full p-2 border border-gray-300 rounded-md cursor-pointer"
+              className="w-full p-2 border border-[#282427] rounded-md cursor-pointer"
             >
               <option value="CHASE_CHECKING">Chase Checking</option>
               <option value="CHASE_PERSONAL_SAVINGS">Chase Personal Savings</option>
@@ -176,7 +181,7 @@ export default function UploadStatement() {
             <label className="block text-md font-medium mb-2">PDF Statement</label>
             <label
               htmlFor="pdf-upload"
-              className="block text-center w-full p-2 border border-gray-300 rounded-md bg-white cursor-pointer hover:bg-gray-50 text-gray-700"
+              className="block text-center w-full p-2 border border-[#282427] rounded-md bg-[#EEEBD9] cursor-pointer hover:bg-[#d7d5c5] text-black"
             >
               {selectedFile ? selectedFile.name : "Select a PDF file..."}
             </label>
@@ -193,7 +198,7 @@ export default function UploadStatement() {
           <button
             onClick={handleUpload}
             disabled={uploading || !selectedFile || !accountId}
-            className="w-full bg-black text-white py-2 px-4 rounded-md cursor-pointer disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="w-full bg-[#282427] text-white py-2 px-4 rounded-md cursor-pointer disabled:bg-[#d7d5c5] disabled:text-[#282427] disabled:cursor-not-allowed"
           >
             {uploading ? 'Processing PDF...' : 'Upload Statement'}
           </button>

@@ -17,7 +17,7 @@ export default function Navigation() {
   ];
 
   return (
-    <nav className="sticky top-6 border-2 border-[#E8ECED] ml-4 my-6 p-3 rounded-2xl h-[calc(100vh-3rem)] flex flex-col">
+    <nav className="sticky top-6 bg-[#EEEBD9] ml-4 my-6 p-3 rounded-2xl h-[calc(100vh-3rem)] flex flex-col">
       <div className="flex flex-col items-center mb-6">
         {session?.user && (
           <div className="my-4">
@@ -33,7 +33,7 @@ export default function Navigation() {
               </Link>
             ) : (
               <Link href="/">
-                <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center text-white font-semibold">
+                <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-white font-semibold">
                   {session.user.name?.[0] || session.user.email?.[0] || 'U'}
                 </div>
               </Link>
@@ -49,8 +49,8 @@ export default function Navigation() {
             href={item.href}
             className={`px-2 py-2 rounded-md flex justify-center items-center transition cursor-pointer border-2 ${
               pathname === item.href
-                ? 'border-black'
-                : 'border-transparent hover:border-gray-100'
+                ? 'border-[#282427]'
+                : 'border-transparent hover:border-gray-300'
             }`}
             title={item.label}
           >
@@ -68,7 +68,7 @@ export default function Navigation() {
         {session?.user && (
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
-            className="my-2 px-3 py-2 rounded-md border-2 border-transparent hover:border-2 hover:border-red-200 transition cursor-pointer"
+            className="my-2 px-3 py-2 rounded-md border-2 border-transparent hover:border-2 hover:border-red-600 transition cursor-pointer"
             title="Sign Out"
           >
             <Image 

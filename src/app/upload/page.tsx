@@ -13,7 +13,7 @@ export default function UploadPage() {
   return (
     <div className="mx-auto p-6">
       <div className='flex justify-between'>
-        <h1 className="text-3xl font-bold text-gray-900">Upload | Add | Update</h1>
+        <h1 className="text-3xl font-bold text-[#EEEBD9]">Upload | Add | Update</h1>
 
         {/* Mode Selection Buttons */}
         <div className="flex gap-4">
@@ -21,33 +21,33 @@ export default function UploadPage() {
             onClick={() => setMode('statement')}
             className={`py-2 px-3 cursor-pointer transition rounded-lg border-2
               ${mode === 'statement'
-                ? 'border-black'
-                : 'border-transparent hover:border-gray-100'
+                ? 'border-[#EEEBD9]'
+                : 'border-transparent hover:border-gray-700'
               }
             `}>
-            <div className="font-semibold">Upload Bank Statement</div>
+            <div className="font-semibold text-[#EEEBD9]">Upload Bank Statement</div>
           </button>
 
           <button
             onClick={() => setMode('transaction')}
             className={`py-2 px-3 cursor-pointer transition rounded-lg border-2
               ${mode === 'transaction'
-                ? 'border-black'
-                : 'border-transparent hover:border-gray-100'
+                ? 'border-[#EEEBD9]'
+                : 'border-transparent hover:border-gray-700'
               }
             `}>
-            <div className="font-semibold">Add Transaction</div>
+            <div className="font-semibold text-[#EEEBD9]">Add Transaction</div>
           </button>
 
           <button
             onClick={() => setMode('investment')}
             className={`py-2 px-3 cursor-pointer transition rounded-lg border-2
               ${mode === 'investment'
-                ? 'border-black'
-                : 'border-transparent hover:border-gray-100'
+                ? 'border-[#EEEBD9]'
+                : 'border-transparent hover:border-gray-700'
               }
             `}>
-            <div className="font-semibold">Update Investment</div>
+            <div className="font-semibold text-[#EEEBD9]">Update Investment</div>
           </button>
         </div>
       </div>

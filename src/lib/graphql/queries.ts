@@ -189,7 +189,7 @@ export const DELETE_ACCOUNT = gql`
 `;
 
 export const CREATE_TRANSACTION = gql`
-  mutation CreateTransaction($input: TransactionInput!) {
+  mutation CreateTransaction($input: CreateTransactionInput!) {
     createTransaction(input: $input) {
       id
       date
@@ -199,7 +199,13 @@ export const CREATE_TRANSACTION = gql`
       category {
         id
         name
+        color
       }
+      account {
+        id
+        name
+      }
+      wasManual
     }
   }
 `;

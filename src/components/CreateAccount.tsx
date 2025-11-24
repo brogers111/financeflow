@@ -11,13 +11,25 @@ export default function CreateAccount() {
   const [type, setType] = useState<AccountType>('CHECKING');
   const [institution, setInstitution] = useState('');
   const [balance, setBalance] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const [createAccount, { loading }] = useMutation(CREATE_ACCOUNT, {
     refetchQueries: ['GetAccounts']
   });
 
+  const resetForm = () => {
+    setName('');
+    setInstitution('');
+    setBalance('');
+    setType('CHECKING');
+    setError('');
+    setSuccess(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
 
     try {
       await createAccount({
@@ -32,16 +44,28 @@ export default function CreateAccount() {
         }
       });
 
-      // Reset form
-      setName('');
-      setInstitution('');
-      setBalance('');
-      alert('Account created successfully!');
-    } catch (error) {
-      console.error('Error creating account:', error);
-      alert('Failed to create account');
+      setSuccess(true);
+    } catch (err: any) {
+      console.error('Error creating account:', err);
+      setError(err.message || 'Failed to create account');
     }
   };
+
+  if (success) {
+    return (
+      <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+        <p className="text-green-800 font-medium">
+          ✅ Account created successfully!
+        </p>
+        <button
+          onClick={resetForm}
+          className="mt-3 text-green-700 underline hover:text-green-900"
+        >
+          Create another account
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -103,6 +127,12 @@ export default function CreateAccount() {
           className="w-full p-2 border border-gray-300 rounded-md"
         />
       </div>
+
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-red-800 text-sm">{error}</p>
+        </div>
+      )}
 
       <button
         type="submit"

@@ -33,15 +33,15 @@ export default function Dashboard() {
   const netWorthChange = stats.netWorthChange || 0;
 
   return (
-    <div className="flex gap-6 p-6 max-w-full">
+    <div className="flex gap-6 p-6 max-w-full bg-[#282427]">
       {/* Main Content Area */}
       <div className="flex-1">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Financial Dashboard</h1>
+        <h1 className="text-3xl font-bold text-[#EEEBD9] mb-6">Financial Dashboard</h1>
 
         {/* Top Scorecards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           {/* Monthly Income */}
-          <div className="p-4 rounded-lg border-2 border-[#E8ECED]">
+          <div className="p-4 rounded-lg bg-[#EEEBD9]">
             <p className="text-xs text-gray-500 mb-1">Last Month Income</p>
             <p className="text-2xl font-bold text-gray-900">
               ${stats.lastMonthIncome?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
@@ -56,7 +56,7 @@ export default function Dashboard() {
           </div>
 
           {/* Monthly Expenses */}
-          <div className="border-2 border-[#E8ECED] p-4 rounded-lg">
+          <div className="bg-[#EEEBD9] p-4 rounded-lg">
             <p className="text-xs text-gray-500 mb-1">Last Month Expenses</p>
             <p className="text-2xl font-bold text-gray-900">
               ${stats.lastMonthExpenses?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
@@ -71,7 +71,7 @@ export default function Dashboard() {
           </div>
 
           {/* Total Cash */}
-          <div className="border-2 border-[#E8ECED] p-4 rounded-lg">
+          <div className="bg-[#EEEBD9] p-4 rounded-lg">
             <p className="text-xs text-gray-500 mb-1">Total Cash</p>
             <p className="text-2xl font-bold text-green-600">
               ${stats.totalCash?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
@@ -86,7 +86,7 @@ export default function Dashboard() {
           </div>
 
           {/* Total Investments */}
-          <div className="border-2 border-[#E8ECED] p-4 rounded-lg">
+          <div className="bg-[#EEEBD9] p-4 rounded-lg">
             <p className="text-xs text-gray-500 mb-1">Investments</p>
             <p className="text-2xl font-bold text-blue-600">
               ${totalInvestments.toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -101,7 +101,7 @@ export default function Dashboard() {
           </div>
 
           {/* Net Worth */}
-          <div className="border-2 border-[#E8ECED] p-4 rounded-lg">
+          <div className="bg-[#EEEBD9] p-4 rounded-lg">
             <p className="text-xs text-gray-500 mb-1">Net Worth</p>
             <p className="text-2xl font-bold text-gray-900">
               ${stats.netWorth?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
@@ -117,7 +117,7 @@ export default function Dashboard() {
         </div>
 
         {/* Main Graph Area - Placeholder */}
-        <div className="border-2 border-[#E8ECED] rounded-lg p-6 mb-6">
+        <div className="bg-[#EEEBD9] rounded-lg p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Monthly Paycheck Flow</h2>
             <div className="flex gap-2">
@@ -132,7 +132,7 @@ export default function Dashboard() {
         </div>
 
         {/* Second Graph Area - Placeholder */}
-        <div className="border-2 border-[#E8ECED] rounded-lg p-6">
+        <div className="bg-[#EEEBD9] rounded-lg p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Net Worth History</h2>
             <button className="px-3 py-1 text-sm rounded cursor-pointer">Date</button>
@@ -146,11 +146,11 @@ export default function Dashboard() {
       {/* Right Sidebar */}
       <div className="w-80 space-y-6 mt-15">
         {/* Accounts Section */}
-        <div className="border-2 border-[#E8ECED] rounded-lg">
-          <div className="px-4 py-3 border-b-2 border-gray-200">
+        <div className="bg-[#EEEBD9] rounded-lg">
+          <div className="px-4 py-3 border-b-2 border-gray-700">
             <h2 className="text-sm font-semibold text-gray-900">Accounts</h2>
           </div>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-700">
             {accounts.map((account: any) => (
               <div key={account.id} className="px-4 py-2 flex justify-between items-center">
                 <p className="text-sm text-gray-700">{account.name}</p>
@@ -163,11 +163,11 @@ export default function Dashboard() {
         </div>
 
         {/* Investments Section */}
-        <div className="border-2 border-[#E8ECED] rounded-lg">
-          <div className={`px-4 py-3 ${investments.length > 0 ? "border-b-2 border-gray-200" : ""}`}>
+        <div className="bg-[#EEEBD9] rounded-lg">
+          <div className={`px-4 py-3 ${investments.length > 0 ? "border-b-2 border-gray-700" : ""}`}>
             <h2 className="text-sm font-semibold text-gray-900">Investments</h2>
           </div>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-700">
             {investments.map((portfolio: any) => (
               <div key={portfolio.id} className="px-4 py-2 flex justify-between items-center">
                 <p className="text-sm text-gray-700">{portfolio.name}</p>
@@ -180,7 +180,7 @@ export default function Dashboard() {
         </div>
 
         {/* Category Spend Pie Chart - Placeholder */}
-        <div className="border-2 border-[#E8ECED] rounded-lg p-4">
+        <div className="bg-[#EEEBD9] rounded-lg p-4">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-sm font-semibold text-gray-900">Category Spend</h2>
             <div className="flex gap-2">
@@ -188,8 +188,8 @@ export default function Dashboard() {
               <button className="px-2 py-1 text-xs rounded cursor-pointer">Month</button>
             </div>
           </div>
-          <div className="h-48 bg-gray-50 rounded flex items-center justify-center">
-            <p className="text-xs text-gray-400">Pie chart - Coming soon</p>
+          <div className="h-48 bg-[#EEEBD9] rounded flex items-center justify-center">
+            <p className="text-xs text-gray-500">Pie chart - Coming soon</p>
           </div>
         </div>
       </div>

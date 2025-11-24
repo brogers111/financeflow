@@ -9,13 +9,25 @@ export default function CreateInvestmentPortfolio() {
   const [type, setType] = useState('');
   const [institution, setInstitution] = useState('');
   const [currentValue, setCurrentValue] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const [createPortfolio, { loading }] = useMutation(CREATE_INVESTMENT_PORTFOLIO, {
     refetchQueries: ['GetInvestmentPortfolios']
   });
 
+  const resetForm = () => {
+    setName('');
+    setType('');
+    setInstitution('');
+    setCurrentValue('');
+    setError('');
+    setSuccess(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
 
     try {
       await createPortfolio({
@@ -27,17 +39,28 @@ export default function CreateInvestmentPortfolio() {
         }
       });
 
-      // Reset form
-      setName('');
-      setType('');
-      setInstitution('');
-      setCurrentValue('');
-      alert('Investment portfolio created successfully!');
-    } catch (error) {
-      console.error('Error creating portfolio:', error);
-      alert('Failed to create portfolio');
+      setSuccess(true);
+    } catch (err: any) {
+      console.error('Error creating portfolio:', err);
+      setError(err.message || 'Failed to create portfolio');
     }
   };
+
+  if (success) {
+    return (
+      <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+        <p className="text-green-800 font-medium">
+          ✅ Investment portfolio created successfully!
+        </p>
+        <button
+          onClick={resetForm}
+          className="mt-3 text-green-700 underline hover:text-green-900"
+        >
+          Create another portfolio
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -99,6 +122,12 @@ export default function CreateInvestmentPortfolio() {
           You can add this later in the Upload tab
         </p>
       </div>
+
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-red-800 text-sm">{error}</p>
+        </div>
+      )}
 
       <button
         type="submit"
