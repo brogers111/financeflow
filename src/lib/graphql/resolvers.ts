@@ -758,6 +758,73 @@ export const resolvers = {
 
         const { transactions, endingBalance } = parseResult;
 
+        if (transactions.length > 0) {
+        // Get date range of this statement
+        const dates = transactions.map((t: any) => new Date(t.date));
+        const statementStartDate = new Date(Math.min(...dates.map((d: Date) => d.getTime())));
+        const statementEndDate = new Date(Math.max(...dates.map((d: Date) => d.getTime())));
+
+        console.log(`📅 Statement date range: ${statementStartDate.toISOString()} to ${statementEndDate.toISOString()}`);
+
+        // Check for existing transactions in this date range for this account
+        const existingTransactions = await prisma.transaction.findMany({
+          where: {
+            accountId,
+            date: {
+              gte: statementStartDate,
+              lte: statementEndDate
+            }
+          },
+          select: {
+            date: true,
+            description: true,
+            amount: true
+          }
+        });
+
+        // Check if ALL transactions from the statement already exist
+        if (existingTransactions.length > 0) {
+          let matchCount = 0;
+
+          for (const newTxn of transactions) {
+            const matches = existingTransactions.some(existing => {
+              const dateDiff = Math.abs(
+                new Date(newTxn.date).getTime() - existing.date.getTime()
+              );
+              const sameDate = dateDiff < 24 * 60 * 60 * 1000; // Within 1 day
+              const sameAmount = Math.abs(existing.amount - newTxn.amount) < 0.01;
+              const sameDescription = existing.description.trim().toUpperCase() === newTxn.description.trim().toUpperCase();
+
+              return sameDate && sameAmount && sameDescription;
+            });
+
+            if (matches) matchCount++;
+          }
+
+          // If 80% or more of transactions match, consider it a duplicate
+          const matchPercentage = (matchCount / transactions.length) * 100;
+          console.log(`🔍 Duplicate check: ${matchCount}/${transactions.length} transactions match (${matchPercentage.toFixed(1)}%)`);
+
+          if (matchPercentage >= 80) {
+            throw new Error(
+              `This statement appears to be a duplicate. ${matchCount} of ${transactions.length} transactions already exist in this account for this time period.`
+            );
+          }
+        }
+
+        // Additional check: Compare ending balance if it exists
+        if (endingBalance !== 0 && Math.abs(account.balance - endingBalance) < 0.01) {
+          console.log(`⚠️ Account balance matches statement ending balance - possible duplicate`);
+          
+          // If balances match AND we have matching transactions, it's very likely a duplicate
+          if (existingTransactions.length >= transactions.length * 0.5) {
+            throw new Error(
+              `This statement appears to be a duplicate. The ending balance ($${endingBalance.toFixed(2)}) matches your current account balance, and ${existingTransactions.length} transactions already exist for this period.`
+            );
+          }
+        }
+      }
+
         // Find the most recent transaction date from this statement
         let statementEndDate: Date | null = null;
         if (transactions.length > 0) {

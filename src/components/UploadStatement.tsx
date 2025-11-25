@@ -18,7 +18,7 @@ export default function UploadStatement() {
   const [accountId, setAccountId] = useState('');
   const [statementType, setStatementType] = useState<StatementType>('CHASE_CHECKING');
   const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
   const { data: accountsData } = useQuery(GET_ACCOUNTS);
@@ -28,6 +28,7 @@ export default function UploadStatement() {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
       setSuccessMessage('');
+      setError('');
     }
   };
 
@@ -35,20 +36,21 @@ export default function UploadStatement() {
     setSelectedFile(null);
     setAccountId('');
     setStatementType('CHASE_CHECKING');
-    setResult(null);
+    setError('');
     setSuccessMessage('');
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
   };
 
   const handleUpload = async () => {
+    setError('');
+    
     if (!selectedFile || !accountId) {
-      alert('Please select a file and account');
+      setError('Please select a file and account');
       return;
     }
 
     setUploading(true);
-    setResult(null);
     setSuccessMessage('');
 
     try {
@@ -59,7 +61,7 @@ export default function UploadStatement() {
         const base64 = reader.result?.toString().split(',')[1];
         
         if (!base64) {
-          alert('Failed to read file');
+          setError('Failed to read file');
           setUploading(false);
           return;
         }
@@ -75,18 +77,17 @@ export default function UploadStatement() {
 
           if (errors) {
             console.error('GraphQL errors:', errors);
-            alert(`Upload failed: ${errors[0]?.message || 'Unknown error'}`);
+            setError(errors[0]?.message || 'Unknown error occurred');
             setUploading(false);
             return;
           }
 
           if (!data?.uploadStatement) {
-            alert('Upload failed: No data returned');
+            setError('Upload failed: No data returned');
             setUploading(false);
             return;
           }
 
-          setResult(data.uploadStatement);
           setUploading(false);
           
           // Show success message
@@ -98,21 +99,20 @@ export default function UploadStatement() {
                 : 'All transactions were automatically categorized!'
             }`
           );
-          setResult(null);
-        } catch (uploadError) {
+        } catch (uploadError: any) {
           console.error('Upload mutation error:', uploadError);
-          alert(`Upload failed: ${uploadError}`);
+          setError(uploadError.message || 'Upload failed');
           setUploading(false);
         }
       };
 
       reader.onerror = () => {
-        alert('Failed to read file');
+        setError('Failed to read file');
         setUploading(false);
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload error:', error);
-      alert('Failed to upload statement');
+      setError(error.message || 'Failed to upload statement');
       setUploading(false);
     }
   };
@@ -120,6 +120,7 @@ export default function UploadStatement() {
   return (
     <div className="max-w-2xl mx-auto p-6 bg-[#EEEBD9] rounded-xl">
       <h2 className="text-2xl font-bold mb-6">Upload Bank Statement</h2>
+      
       {/* Success Message */}
       {successMessage && (
         <div className="mt-2 p-4 rounded-md">
@@ -129,14 +130,19 @@ export default function UploadStatement() {
           >
             {successMessage}
           </p>
-          <div className='flex gap-4'>
+          <div className="flex gap-4">
             <button
               onClick={resetForm}
               className="w-1/2 mt-3 mx-auto py-2 px-4 rounded-md cursor-pointer border-2 border-green-700 hover:bg-green-100 text-green-700 text-center block"
             >
               Upload Another Statement
             </button>
-            <Link href="/transactions" className='w-1/2 mt-3 mx-auto py-2 px-4 rounded-md cursor-pointer bg-black text-white text-center block'>Categorize Transactions</Link>
+            <Link 
+              href="/transactions" 
+              className="w-1/2 mt-3 mx-auto py-2 px-4 rounded-md cursor-pointer bg-black text-white text-center block"
+            >
+              Categorize Transactions
+            </Link>
           </div>
         </div>
       )}
@@ -154,7 +160,7 @@ export default function UploadStatement() {
               <option value="">Select an account</option>
               {accountsData?.accounts?.map((account: any) => (
                 <option key={account.id} value={account.id}>
-                  {account.institution} - {account.name}
+                  {account.name}
                 </option>
               ))}
             </select>
@@ -193,6 +199,13 @@ export default function UploadStatement() {
               className="hidden"
             />
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 text-center">
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
 
           {/* Upload Button */}
           <button
