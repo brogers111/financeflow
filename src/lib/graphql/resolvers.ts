@@ -758,6 +758,38 @@ export const resolvers = {
 
         const { transactions, endingBalance } = parseResult;
 
+        // Safety checks for parser failure or incorrect statement type selected
+        if (!transactions || transactions.length === 0) {
+          throw new Error(
+            `No transactions found in this statement. This could mean:\n\n` +
+            `• The statement is empty or has no transactions for this period\n` +
+            `• You selected the wrong statement type (e.g., selected "Chase Credit" but uploaded a "Chase Savings" statement)\n` +
+            `• The PDF format is not supported\n\n` +
+            `Please verify you selected the correct statement type and try again.`
+          );
+        }
+
+        if (endingBalance === 0 && transactions.length > 0) {
+          console.warn('⚠️ Warning: Parser returned $0 ending balance with transactions present');
+        }
+
+        const uniqueAmounts = new Set(transactions.map((t: any) => t.amount));
+        if (uniqueAmounts.size === 1 && transactions.length > 5) {
+          throw new Error(
+            `Parser detected an error: All transactions have the same amount ($${transactions[0].amount.toFixed(2)}). ` +
+            `This likely means you uploaded the wrong statement type. Please verify you selected the correct statement type for your PDF.`
+          );
+        }
+
+        const missingDescriptions = transactions.filter((t: any) => !t.description || t.description.trim() === '').length;
+        if (missingDescriptions > transactions.length * 0.5) {
+          throw new Error(
+            `Parser error: More than half of the transactions are missing descriptions. ` +
+            `This indicates the wrong statement type was selected or an unsupported PDF format. ` +
+            `Please verify you selected the correct statement type.`
+          );
+        }
+
         if (transactions.length > 0) {
         // Get date range of this statement
         const dates = transactions.map((t: any) => new Date(t.date));

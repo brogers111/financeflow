@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import Image from 'next/image';
-import { GET_TRANSACTIONS, GET_CATEGORIES, CATEGORIZE_TRANSACTION } from '@/lib/graphql/queries';
+import { GET_TRANSACTIONS, GET_CATEGORIES, CATEGORIZE_TRANSACTION, DELETE_TRANSACTION } from '@/lib/graphql/queries';
 
 type Transaction = {
   id: string;
@@ -29,10 +29,15 @@ export default function TransactionsPage() {
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const [editingTransaction, setEditingTransaction] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; description: string } | null>(null);
 
   const { data: transactionsData, loading, refetch } = useQuery(GET_TRANSACTIONS);
   const { data: categoriesData } = useQuery(GET_CATEGORIES);
   const [categorizeTransaction, { loading: categorizing }] = useMutation(CATEGORIZE_TRANSACTION);
+  const [deleteTransaction, { loading: deleting }] = useMutation(DELETE_TRANSACTION, {
+    refetchQueries: ['GetTransactions', 'GetDashboardStats', 'GetAccounts']
+  });
 
   const transactions: Transaction[] = transactionsData?.transactions || [];
   const categories = categoriesData?.categories || [];
@@ -76,6 +81,21 @@ export default function TransactionsPage() {
       await refetch();
     } catch (error) {
       console.error('Categorization error:', error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+
+    try {
+      await deleteTransaction({
+        variables: { id: deleteConfirm.id }
+      });
+
+      setDeleteConfirm(null);
+      await refetch();
+    } catch(error) {
+      console.error('Delete error:', error);
     }
   };
 
@@ -142,6 +162,9 @@ export default function TransactionsPage() {
           <table className="min-w-full divide-y divide-[#282427]">
             <thead className="bg-[#EEEBD9]">
               <tr>
+                <th className='px-6 py-3 text-left text-xs font-semibold text-[#282427] uppercase tracking-wider w-12'>
+                  {/* Empty header for delete icon column */}
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-[#282427] uppercase tracking-wider">
                   Date
                 </th>
@@ -163,9 +186,27 @@ export default function TransactionsPage() {
             <tbody className="bg-[#EEEBD9] divide-y divide-[#282427]">
               {filteredTransactions.map((transaction) => {
                 const isEditing = editingTransaction === transaction.id;
+                const isHovered = hoveredRow === transaction.id;
 
                 return (
-                  <tr key={transaction.id}>
+                  <tr
+                    key={transaction.id}
+                    onMouseEnter={() => setHoveredRow(transaction.id)}
+                    onMouseLeave={() => setHoveredRow(null)}
+                    className='hover:bg-[#d7d5c5] transition-colors'
+                  >
+                    <td className="px-2 py-4 whitespace-nowrap text-sm w-12">
+                      {isHovered && (
+                        <button
+                          onClick={() => setDeleteConfirm({ id: transaction.id, description: transaction.description })}
+                          className="p-1 hover:bg-red-100 rounded transition-colors cursor-pointer"
+                          title="Delete transaction"
+                        >
+                          <Image src="/trash.svg" alt="Delete" width={24} height={24} />
+                        </button>
+                      )}
+                    </td>
+
                     <td className="px-6 py-6 whitespace-nowrap text-sm text-[#282427]">
                       {new Date(Number(transaction.date)).toLocaleDateString('en-US', {
                         month: 'short',
@@ -262,6 +303,35 @@ export default function TransactionsPage() {
           </div>
         )}
       </div>
+            {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 min-w-sm max-w-md">
+            <h3 className="text-lg font-semibold mb-4 text-center">Confirm Transaction Deletion:</h3>
+            <p className="text-gray-600 mb-2 font-bold">
+              {deleteConfirm.description}
+            </p>
+            <p className='text-gray-600 mb-4'>
+              This action cannot be undone
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 disabled:bg-gray-400 cursor-pointer"
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

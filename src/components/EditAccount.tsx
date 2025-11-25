@@ -211,10 +211,13 @@ export default function EditAccount() {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Confirm Delete</h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete <strong>{name}</strong>? This action cannot be undone and will delete all associated transactions.
+          <div className="bg-white rounded-lg p-6 min-w-sm max-w-md">
+            <h3 className="text-lg font-semibold mb-4 text-center">Confirm Account Deletion:</h3>
+            <p className="text-gray-600 mb-2 font-bold">
+              {name}
+            </p>
+            <p className="text-gray-600 mb-4">
+              This action cannot be undone and will delete all associated transactions.
             </p>
             <div className="flex gap-4">
               <button
