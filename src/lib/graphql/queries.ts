@@ -14,31 +14,6 @@ export const GET_ACCOUNTS = gql`
   }
 `;
 
-export const GET_ACCOUNT = gql`
-  query GetAccount($id: ID!) {
-    account(id: $id) {
-      id
-      name
-      type
-      institution
-      balance
-      isActive
-      transactions {
-        id
-        date
-        description
-        amount
-        type
-      }
-      balanceHistory {
-        id
-        date
-        balance
-      }
-    }
-  }
-`;
-
 export const GET_TRANSACTIONS = gql`
   query GetTransactions(
     $accountId: ID
@@ -141,22 +116,6 @@ export const GET_NET_WORTH_HISTORY = gql`
   }
 `;
 
-export const GET_PAYCHECK_FLOW = gql`
-  query GetPaycheckFlow($paycheckDate: String!) {
-    paycheckFlow(paycheckDate: $paycheckDate) {
-      paycheckAmount
-      paycheckDate
-      daysInCycle
-      remainingBalance
-      dailySpending {
-        date
-        spent
-        balance
-      }
-    }
-  }
-`;
-
 // MUTATIONS
 export const CREATE_ACCOUNT = gql`
   mutation CreateAccount($input: CreateAccountInput!) {
@@ -212,21 +171,38 @@ export const CREATE_TRANSACTION = gql`
   }
 `;
 
-export const UPDATE_TRANSACTION = gql`
-  mutation UpdateTransaction($id: ID!, $input: TransactionInput!) {
-    updateTransaction(id: $id, input: $input) {
+export const DELETE_TRANSACTION = gql`
+  mutation DeleteTransaction($id: ID!) {
+    deleteTransaction(id: $id)
+  }
+`;
+
+export const GET_DAILY_BALANCE_FLOW = gql`
+  query GetDailyBalanceFlow(
+    $startDate: String!
+    $endDate: String!
+    $accountIds: [ID!]
+    $categoryIds: [ID!]
+  ) {
+    transactions(
+      startDate: $startDate
+      endDate: $endDate
+    ) {
       id
       date
       description
       amount
       type
+      account {
+        id
+        name
+      }
+      category {
+        id
+        name
+        color
+      }
     }
-  }
-`;
-
-export const DELETE_TRANSACTION = gql`
-  mutation DeleteTransaction($id: ID!) {
-    deleteTransaction(id: $id)
   }
 `;
 
@@ -240,29 +216,6 @@ export const CATEGORIZE_TRANSACTION = gql`
         name
         color
       }
-    }
-  }
-`;
-
-export const CREATE_CATEGORY = gql`
-  mutation CreateCategory($input: CategoryInput!) {
-    createCategory(input: $input) {
-      id
-      name
-      type
-      color
-      icon
-    }
-  }
-`;
-
-export const RECORD_PAYCHECK = gql`
-  mutation RecordPaycheck($input: PaycheckInput!) {
-    recordPaycheck(input: $input) {
-      id
-      date
-      amount
-      accountId
     }
   }
 `;

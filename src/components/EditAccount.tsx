@@ -200,7 +200,7 @@ export default function EditAccount() {
               type="button"
               onClick={() => setShowDeleteConfirm(true)}
               disabled={deleting}
-              className="flex-1 bg-red-500 text-white py-2 px-4 rounded-lg cursor-pointer hover:bg-red-700 disabled:bg-gray-400"
+              className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg cursor-pointer hover:bg-red-700 disabled:bg-gray-400"
             >
               Delete Account
             </button>
@@ -217,7 +217,7 @@ export default function EditAccount() {
               {name}
             </p>
             <p className="text-gray-600 mb-4">
-              This action cannot be undone and will delete all associated transactions.
+              This action can&apos;t be undone and will delete all associated transactions.
             </p>
             <div className="flex gap-4">
               <button

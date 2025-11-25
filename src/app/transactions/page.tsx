@@ -312,7 +312,7 @@ export default function TransactionsPage() {
               {deleteConfirm.description}
             </p>
             <p className='text-gray-600 mb-4'>
-              This action cannot be undone
+              This action can&apos;t be undone.
             </p>
             <div className="flex gap-4">
               <button

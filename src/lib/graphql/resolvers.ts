@@ -11,16 +11,6 @@ interface AccountInput {
   isActive?: boolean;
 }
 
-interface TransactionInput {
-  accountId: string;
-  date: string;
-  description: string;
-  amount: number;
-  type: TransactionType;
-  categoryId?: string;
-  notes?: string;
-}
-
 interface CategoryInput {
   name: string;
   type: TransactionType;
@@ -342,56 +332,6 @@ export const resolvers = {
       }));
     },
 
-    // Fetch paycheck flow
-    paycheckFlow: async (_parent: unknown, { paycheckDate }: { paycheckDate: string }) => {
-      const pcDate = new Date(paycheckDate);
-      const nextPaycheck = new Date(pcDate);
-      nextPaycheck.setDate(nextPaycheck.getDate() + 14);
-
-      const paycheck = await prisma.paycheck.findFirst({
-        where: { date: pcDate }
-      });
-
-      if (!paycheck) {
-        throw new Error('Paycheck not found');
-      }
-
-      const transactions = await prisma.transaction.findMany({
-        where: {
-          type: TransactionType.EXPENSE,
-          date: { gte: pcDate, lt: nextPaycheck }
-        },
-        orderBy: { date: 'asc' }
-      });
-
-      const dailySpending: { date: string; spent: number; balance: number }[] = [];
-      let balance = paycheck.amount;
-
-      for (let d = new Date(pcDate); d < nextPaycheck; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().split('T')[0];
-        const dayTransactions = transactions.filter(
-          t => t.date.toISOString().split('T')[0] === dateStr
-        );
-        
-        const spent = dayTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-        balance -= spent;
-
-        dailySpending.push({
-          date: dateStr,
-          spent,
-          balance
-        });
-      }
-
-      return {
-        paycheckAmount: paycheck.amount,
-        paycheckDate: pcDate.toISOString(),
-        daysInCycle: 14,
-        dailySpending,
-        remainingBalance: balance
-      };
-    },
-
     investmentPortfolios: async (_parent: unknown, _args: unknown, context: any) => {
       if (!context.user?.id) {
         throw new Error('Not authenticated');
@@ -521,26 +461,6 @@ export const resolvers = {
       });
 
       return transaction;
-    },
-
-    // Update transaction
-    updateTransaction: async (_parent: unknown, { id, input }: { id: string; input: Partial<TransactionInput> }) => {
-      const data: Prisma.TransactionUpdateInput = {};
-      
-      if (input.date !== undefined) data.date = new Date(input.date);
-      if (input.description !== undefined) data.description = input.description;
-      if (input.amount !== undefined) data.amount = input.amount;
-      if (input.type !== undefined) data.type = input.type;
-      if (input.notes !== undefined) data.notes = input.notes;
-      if (input.categoryId !== undefined) {
-        data.category = { connect: { id: input.categoryId } };
-      }
-
-      return prisma.transaction.update({
-        where: { id },
-        data,
-        include: { account: true, category: true }
-      });
     },
 
     // Delete transaction

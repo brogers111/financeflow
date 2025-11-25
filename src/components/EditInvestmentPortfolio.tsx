@@ -194,7 +194,7 @@ export default function EditInvestmentPortfolio() {
               {name}
             </p>
             <p className='text-gray-600 mb-4'>
-              This action cannot be undone and will delete all value history.
+              This action can&apos;t be undone and will delete all value history.
             </p>
             <div className="flex gap-4">
               <button
