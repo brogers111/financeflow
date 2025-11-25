@@ -11,6 +11,8 @@ import {
   GET_CATEGORIES
 } from '@/lib/graphql/queries';
 import {
+  BarChart,
+  Bar,
   LineChart,
   Line,
   PieChart,
@@ -302,45 +304,94 @@ export default function Dashboard() {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  // Custom tooltip for balance flow
+  // Custom tooltip for Balance Flow
   const BalanceFlowTooltip = ({ active, payload }: any) => {
     if (!active || !payload || !payload[0]) return null;
     const data = payload[0].payload;
+    console.log(data);
     return (
-      <div className="bg-white p-4 border border-gray-300 rounded shadow-lg max-w-md">
-        <p className="font-semibold mb-2">{data.date}</p>
-        <p className="text-lg font-bold mb-2">
-          Balance: ${data.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-        </p>
+      <div className="max-w-md">
+        <p className="text-xs font-semibold bg-[#EEEBD9] px-2 border border-[#282427] rounded shadow-lg inline-block">{data.date}</p>
+        <div className='mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg'>
+          <p className="text-md font-bold">
+            Balance: ${data.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
 
-        {data.income.length > 0 && (
-          <div className="mb-2">
-            <p className="font-semibold text-green-600">Income: ${data.incomeTotal.toFixed(2)}</p>
-            {data.income.map((t: any) => (
-              <p key={t.id} className="text-xs text-gray-600 ml-2">
-                • {t.description}: ${Number(t.amount).toFixed(2)}
-              </p>
-            ))}
-          </div>
-        )}
+          {data.income.length > 0 && (
+            <div className="mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
+              <p className="text-sm font-semibold text-green-600">Income: ${data.incomeTotal.toFixed(2)}</p>
+              {data.income.map((t: any) => (
+                <p key={t.id} className="text-xs text-gray-800 flex items-center gap-1">
+                  {/* Dot */}
+                  <span 
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: t.category?.color || '#666' }}
+                  ></span>
+                  <strong>
+                    {t.description.length > 15 ? t.description.slice(0, 15) + '…' : t.description}:
+                  </strong> 
+                  ${Number(t.amount).toFixed(2)}
+                </p>
+              ))}
+            </div>
+          )}
 
-        {data.expenses.length > 0 && (
-          <div>
-            <p className="font-semibold text-red-600">Expenses: ${data.expenseTotal.toFixed(2)}</p>
-            {data.expenses.map((t: any) => (
-              <p key={t.id} className="text-xs text-gray-600 ml-2">
-                • {t.description}: ${Math.abs(Number(t.amount)).toFixed(2)}
-              </p>
-            ))}
-          </div>
-        )}
-
-        {data.income.length === 0 && data.expenses.length === 0 && (
-          <p className="text-xs text-gray-500">No transactions</p>
-        )}
+          {data.expenses.length > 0 && (
+            <div className='mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg'>
+              <p className="text-sm font-semibold text-red-600">Expenses: ${data.expenseTotal.toFixed(2)}</p>
+              {data.expenses.map((t: any) => (
+                <p key={t.id} className="text-xs text-gray-800 flex items-center gap-1">
+                  <span 
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: t.category?.color || '#666' }}
+                  ></span>
+                  <strong>
+                    {t.description.length > 10 ? t.description.slice(0, 10) + '…' : t.description}:
+                  </strong> 
+                  ${Math.abs(Number(t.amount)).toFixed(2)}
+                </p>
+              ))}
+            </div>
+          )}
       </div>
     );
   };
+
+  // Custom tooltip for Net Worth History
+  const NetWorthTooltip = ({ active, payload }: any) => {
+    if (!active || !payload || !payload[0]) return null;
+    const data = payload[0].payload;
+
+    return (
+      <div className="max-w-md">
+        {/* Date */}
+        <p className="text-xs font-semibold bg-[#EEEBD9] px-2 border border-[#282427] rounded shadow-lg inline-block">
+          {data.date}
+        </p>
+
+        {/* Cash */}
+        <div className="mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
+          <p className="text-sm font-semibold text-[#35B79B]">Cash: ${data.cash.toLocaleString()}</p>
+        </div>
+
+        {/* Investments */}
+        <div className="mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
+          <p className="text-sm font-semibold text-[#463A85]">
+            Investments: ${data.investments.toLocaleString()}
+          </p>
+        </div>
+
+        {/* Net Worth */}
+        <div className="mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
+          <p className="text-md font-bold text-[#282427]">
+            Net Worth: ${data.netWorth.toLocaleString()}
+          </p>
+        </div>
+      </div>
+    );
+  };
+
 
   // toggle helpers
   const toggleAccountFilter = (accountId: string) => {
@@ -406,7 +457,7 @@ export default function Dashboard() {
           {/* Total Cash */}
           <div className="bg-[#EEEBD9] p-4 rounded-lg">
             <p className="text-xs text-gray-500 mb-1">Total Cash</p>
-            <p className="text-2xl font-bold text-green-600">
+            <p className="text-2xl font-bold text-[#35B79B]">
               ${stats.totalCash?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
             </p>
             <div className="flex items-center gap-1 mt-1">
@@ -421,7 +472,7 @@ export default function Dashboard() {
           {/* Total Investments */}
           <div className="bg-[#EEEBD9] p-4 rounded-lg">
             <p className="text-xs text-gray-500 mb-1">Investments</p>
-            <p className="text-2xl font-bold text-blue-600">
+            <p className="text-2xl font-bold text-[#463A85]">
               ${totalInvestments.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
             <div className="flex items-center gap-1 mt-1">
@@ -492,7 +543,7 @@ export default function Dashboard() {
               {/* Account Filter */}
               <button
                 onClick={() => setShowAccountModal(!showAccountModal)}
-                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 hover:bg-gray-100"
+                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300"
               >
                 Accounts {excludedAccountIds.length > 0 && `(-${excludedAccountIds.length})`}
               </button>
@@ -500,7 +551,7 @@ export default function Dashboard() {
               {/* Category Filter */}
               <button
                 onClick={() => setShowCategoryModal(!showCategoryModal)}
-                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 hover:bg-gray-100"
+                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300"
               >
                 Categories {excludedCategoryIds.length > 0 && `(-${excludedCategoryIds.length})`}
               </button>
@@ -517,16 +568,16 @@ export default function Dashboard() {
                 <ReferenceLine
                   key={i}
                   x={boundary}
-                  stroke="#ccc"
-                  strokeDasharray="3 3"
+                  stroke="#666"
+                  strokeDasharray="5 3"
                 />
               ))}
               <Line
                 type="monotone"
                 dataKey="balance"
-                stroke="#4ECDC4"
+                stroke="#000"
                 strokeWidth={2}
-                dot={{ fill: '#4ECDC4', r: 4 }}
+                dot={{ fill: '#000', r: 1.5 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -548,38 +599,20 @@ export default function Dashboard() {
             </select>
           </div>
           {netWorthHistory.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={netWorthHistory}>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={netWorthHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ddd" />
                 <XAxis dataKey="date" stroke="#666" />
                 <YAxis stroke="#666" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #ddd' }}
-                  formatter={(value: any) => `$${value.toLocaleString()}`}
-                />
+                <Tooltip content={<NetWorthTooltip />} cursor={false} />
                 <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="cash"
-                  stroke="#10B981"
-                  strokeWidth={2}
-                  name="Cash"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="investments"
-                  stroke="#3B82F6"
-                  strokeWidth={2}
-                  name="Investments"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="netWorth"
-                  stroke="#8B5CF6"
-                  strokeWidth={3}
-                  name="Net Worth"
-                />
-              </LineChart>
+
+                {/* Cash */}
+                <Bar dataKey="cash" stackId="a" fill="#35B79B" radius={[10, 10, 10, 10]} />
+
+                {/* Investments */}
+                <Bar dataKey="investments" stackId="a" fill="#463A85" radius={[10, 10, 10, 10]} />
+              </BarChart>
             </ResponsiveContainer>
           ) : (
             <div className="h-64 flex items-center justify-center text-gray-500">
@@ -590,7 +623,7 @@ export default function Dashboard() {
       </div>
 
       {/* Right Sidebar */}
-      <div className="w-80 space-y-6 mt-6">
+      <div className="w-80 space-y-6 mt-15">
         {/* Accounts Section */}
         <div className="bg-[#EEEBD9] rounded-lg">
           <div className="px-4 py-3 border-b-2 border-gray-700">
@@ -628,17 +661,17 @@ export default function Dashboard() {
         {/* Category Spend Pie Chart */}
         <div className="bg-[#EEEBD9] rounded-lg p-4">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-sm font-semibold text-gray-900">Category Spend</h2>
+            <h2 className="text-md font-semibold text-gray-900">Category Breakdowns</h2>
             <div className="flex gap-2">
               <button
                 onClick={() => setCategoryViewMode(categoryViewMode === 'percentage' ? 'amount' : 'percentage')}
-                className="px-2 py-1 text-xs rounded cursor-pointer bg-[#282427] text-white"
+                className="px-2 py-1 text-xs rounded cursor-pointer text-[#282427] border border-gray-300"
               >
                 {categoryViewMode === 'percentage' ? '%' : '$'}
               </button>
               <button
                 onClick={() => setCategoryTimeframe(categoryTimeframe === 'month' ? 'year' : 'month')}
-                className="px-2 py-1 text-xs rounded cursor-pointer bg-[#282427] text-white"
+                className="px-2 py-1 text-xs rounded cursor-pointer text-[#282427] border border-gray-300"
               >
                 {categoryTimeframe === 'month' ? 'Month' : 'Year'}
               </button>
@@ -647,17 +680,18 @@ export default function Dashboard() {
 
           {categoryData.length > 0 ? (
             <>
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={170}>
                 <PieChart>
                   <Pie
                     data={categoryData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    innerRadius={60}
+                    innerRadius={50}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
+                    className='cursor-pointer'
                   >
                     {categoryData.map((entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
@@ -669,8 +703,17 @@ export default function Dashboard() {
                         ? `${value.toFixed(1)}%`
                         : `$${value.toLocaleString()}`
                     }
+                    contentStyle={{
+                      backgroundColor: '#EEEBD9',
+                      border: '1px solid #282427',
+                      borderRadius: '8px',
+                      padding: '2px 10px',
+                      color: '#282427',
+                      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.25',
+                      fontSize: '14px',
+                      fontWeight: 'bold'
+                    }}
                   />
-                  {/* center text - render as SVG text */}
                   <text
                     x="50%"
                     y="50%"
