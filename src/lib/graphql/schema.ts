@@ -202,12 +202,16 @@ export const typeDefs = gql`
     # Paycheck tracking
     recordPaycheck(input: PaycheckInput!): Paycheck!
 
+    # Investment portfolio management
     createInvestmentPortfolio(
       name: String!
       type: String!
       institution: String!
       currentValue: Float
     ): InvestmentPortfolio!
+
+    updateInvestmentPortfolio(id: ID!, input: updateInvestmentPortfolioInput!): InvestmentPortfolio!
+    deleteInvestmentPortfolio(id: ID!): Boolean!
 
     updateInvestmentValue(
       portfolioId: ID!
@@ -222,11 +226,12 @@ export const typeDefs = gql`
     type: AccountType!
     institution: String!
     balance: Float!
-    userId: ID!
   }
 
   input UpdateAccountInput {
     name: String
+    type: AccountType
+    institution: String
     balance: Float
     isActive: Boolean
   }
@@ -267,5 +272,11 @@ export const typeDefs = gql`
     success: Boolean!
     transactionsCreated: Int!
     needsCategorization: [Transaction!]!
+  }
+
+  input updateInvestmentPortfolioInput{
+    name: String
+    type: String
+    institution: String
   }
 `;

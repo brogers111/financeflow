@@ -36,7 +36,7 @@ export default function Dashboard() {
     <div className="flex gap-6 p-6 max-w-full bg-[#282427]">
       {/* Main Content Area */}
       <div className="flex-1">
-        <h1 className="text-3xl font-bold text-[#EEEBD9] mb-6">Financial Dashboard</h1>
+        <h1 className="text-3xl font-bold text-[#EEEBD9] mb-6">Dashboard</h1>
 
         {/* Top Scorecards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">

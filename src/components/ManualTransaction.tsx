@@ -7,7 +7,7 @@ import { CREATE_TRANSACTION, GET_ACCOUNTS, GET_CATEGORIES } from '@/lib/graphql/
 
 export default function ManualTransaction() {
   const [accountId, setAccountId] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
@@ -28,7 +28,7 @@ export default function ManualTransaction() {
     setCategoryId('');
     setAccountId('');
     setType('EXPENSE');
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(new Date().toLocaleDateString('en-CA'));
     setError('');
     setSuccess(false);
   };
@@ -69,7 +69,7 @@ export default function ManualTransaction() {
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-[#EEEBD9] rounded-xl">
-      <h2 className="text-2xl font-bold mb-6">Add Manual Transaction</h2>
+      <h2 className="text-2xl font-bold mb-6">Upload Transaction Manually</h2>
 
       {/* Success Message */}
       {success && (
@@ -153,7 +153,7 @@ export default function ManualTransaction() {
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="e.g., Grocery shopping at Whole Foods"
+                placeholder="e.g., Ice Cream from Dairy Queen"
                 className="w-full p-2 border border-[#282427] rounded-lg"
                 required
             />

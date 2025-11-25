@@ -145,7 +145,7 @@ export default function UploadStatement() {
         <>
           {/* Account Selection */}
           <div className="mb-4">
-            <label className="block text-md font-medium mb-2">Account</label>
+            <label className="block text-md font-medium mb-2">Account Name</label>
             <select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
@@ -154,7 +154,7 @@ export default function UploadStatement() {
               <option value="">Select an account</option>
               {accountsData?.accounts?.map((account: any) => (
                 <option key={account.id} value={account.id}>
-                  {account.name} ({account.institution})
+                  {account.institution} - {account.name}
                 </option>
               ))}
             </select>
@@ -168,11 +168,11 @@ export default function UploadStatement() {
               onChange={(e) => setStatementType(e.target.value as StatementType)}
               className="w-full p-2 border border-[#282427] rounded-md cursor-pointer"
             >
-              <option value="CHASE_CHECKING">Chase Checking</option>
-              <option value="CHASE_PERSONAL_SAVINGS">Chase Personal Savings</option>
-              <option value="CHASE_CREDIT">Chase Credit Card</option>
-              <option value="CHASE_BUSINESS_SAVINGS">Chase Business Savings</option>
-              <option value="CAPITAL_ONE_SAVINGS">Capital One Savings</option>
+              <option value="CHASE_CHECKING">Chase - Checking</option>
+              <option value="CHASE_PERSONAL_SAVINGS">Chase - Personal Savings</option>
+              <option value="CHASE_CREDIT">Chase - Credit Card</option>
+              <option value="CHASE_BUSINESS_SAVINGS">Chase - Business Savings</option>
+              <option value="CAPITAL_ONE_SAVINGS">Capital One - Savings</option>
             </select>
           </div>
 

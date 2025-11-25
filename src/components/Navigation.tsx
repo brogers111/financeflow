@@ -13,21 +13,21 @@ export default function Navigation() {
     { href: '/', label: 'Dashboard', icon: '/dashboard.svg' },
     { href: '/transactions', label: 'Transactions', icon: '/transactions.svg' },
     { href: '/upload', label: 'Upload', icon: '/upload.svg' },
-    { href: '/create', label: 'Create', icon: '/create.svg' },
+    { href: '/edit', label: 'Edit', icon: '/edit.svg' },
   ];
 
   return (
-    <nav className="sticky top-6 bg-[#EEEBD9] ml-4 my-6 p-3 rounded-2xl h-[calc(100vh-3rem)] flex flex-col">
+    <nav className="sticky top-6 bg-[#EEEBD9] ml-4 my-6 p-1 rounded-2xl h-[calc(100vh-3rem)] flex flex-col">
       <div className="flex flex-col items-center mb-6">
         {session?.user && (
-          <div className="my-4">
+          <div className="my-2">
             {session.user.image ? (
               <Link href="/">
                 <Image
                   src={session.user.image}
                   alt={session.user.name || 'User'}
-                  width={50}
-                  height={50}
+                  width={40}
+                  height={40}
                   className="rounded-full"
                 />
               </Link>
@@ -47,9 +47,9 @@ export default function Navigation() {
           <Link
             key={item.href}
             href={item.href}
-            className={`px-2 py-2 rounded-md flex justify-center items-center transition cursor-pointer border-2 ${
+            className={`px-1 py-2 rounded-md flex justify-center items-center transition cursor-pointer border-2 ${
               pathname === item.href
-                ? 'border-[#282427]'
+                ? 'border-gray-400'
                 : 'border-transparent hover:border-gray-300'
             }`}
             title={item.label}

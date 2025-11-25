@@ -13,7 +13,7 @@ export default function UploadPage() {
   return (
     <div className="mx-auto p-6">
       <div className='flex justify-between'>
-        <h1 className="text-3xl font-bold text-[#EEEBD9]">Upload | Add | Update</h1>
+        <h1 className="text-3xl font-bold text-[#EEEBD9]">Upload</h1>
 
         {/* Mode Selection Buttons */}
         <div className="flex gap-4">
@@ -36,7 +36,7 @@ export default function UploadPage() {
                 : 'border-transparent hover:border-gray-700'
               }
             `}>
-            <div className="font-semibold text-[#EEEBD9]">Add Transaction</div>
+            <div className="font-semibold text-[#EEEBD9]">Upload Transaction</div>
           </button>
 
           <button
@@ -47,7 +47,7 @@ export default function UploadPage() {
                 : 'border-transparent hover:border-gray-700'
               }
             `}>
-            <div className="font-semibold text-[#EEEBD9]">Update Investment</div>
+            <div className="font-semibold text-[#EEEBD9]">Upload Investment Amount</div>
           </button>
         </div>
       </div>

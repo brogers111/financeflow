@@ -159,25 +159,27 @@ export const GET_PAYCHECK_FLOW = gql`
 
 // MUTATIONS
 export const CREATE_ACCOUNT = gql`
-  mutation CreateAccount($input: AccountInput!) {
+  mutation CreateAccount($input: CreateAccountInput!) {
     createAccount(input: $input) {
       id
       name
       type
       institution
       balance
+      isActive
     }
   }
 `;
 
 export const UPDATE_ACCOUNT = gql`
-  mutation UpdateAccount($id: ID!, $input: AccountInput!) {
+  mutation UpdateAccount($id: ID!, $input: UpdateAccountInput!) {
     updateAccount(id: $id, input: $input) {
       id
       name
       type
       institution
       balance
+      isActive
     }
   }
 `;
@@ -344,5 +346,23 @@ export const CREATE_INVESTMENT_PORTFOLIO = gql`
       institution
       currentValue
     }
+  }
+`;
+
+export const UPDATE_INVESTMENT_PORTFOLIO = gql`
+  mutation UpdateInvestmentPortfolio($id: ID!, $input: UpdateInvestmentPortfolioInput!) {
+    updateInvestmentPortfolio(id: $id, input: $input) {
+      id
+      name
+      type
+      institution
+      currentValue
+    }
+  }
+`;
+
+export const DELETE_INVESTMENT_PORTFOLIO = gql`
+  mutation DeleteInvestmentPortfolio($id: ID!) {
+    deleteInvestmentPortfolio(id: $id)
   }
 `;

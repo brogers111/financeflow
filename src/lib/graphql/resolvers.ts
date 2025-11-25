@@ -9,7 +9,6 @@ interface AccountInput {
   balance?: number;
   currency?: string;
   isActive?: boolean;
-  userId: string;
 }
 
 interface TransactionInput {
@@ -422,7 +421,11 @@ export const resolvers = {
 
   Mutation: {
     // Create account
-    createAccount: async (_parent: unknown, { input }: { input: AccountInput }) => {
+    createAccount: async (_parent: unknown, { input }: { input: AccountInput }, context: any) => {
+      if (!context.user?.id){
+        throw new Error('Not authenticated');
+      }
+
       return prisma.financialAccount.create({
         data: {
           name: input.name,
@@ -431,16 +434,33 @@ export const resolvers = {
           balance: input.balance ?? 0,
           currency: input.currency ?? 'USD',
           isActive: input.isActive ?? true,
-          user: {
-            connect: { id: input.userId }
-          }
-        },
-        include: { user: true }
+          userId: context.user.id
+        }
       });
     },
 
     // Update account
-    updateAccount: async (_parent: unknown, { id, input }: { id: string; input: Partial<AccountInput> }) => {
+    updateAccount: async (
+      _parent: unknown, 
+      { id, input }: { id: string; input: Partial<AccountInput> },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      // Verify account belongs to user
+      const existingAccount = await prisma.financialAccount.findFirst({
+        where: {
+          id,
+          userId: context.user.id
+        }
+      });
+
+      if (!existingAccount) {
+        throw new Error('Account not found or access denied');
+      }
+
       const data: Prisma.FinancialAccountUpdateInput = {};
       
       if (input.name !== undefined) data.name = input.name;
@@ -452,8 +472,7 @@ export const resolvers = {
 
       return prisma.financialAccount.update({
         where: { id },
-        data,
-        include: { user: true }
+        data
       });
     },
 
@@ -922,6 +941,71 @@ export const resolvers = {
       console.log(`📈 Updated ${portfolio.name} to $${value}`);
 
       return portfolio;
+    },
+
+    updateInvestmentPortfolio: async (
+      _parent: unknown,
+      { id, input }: { 
+        id: string; 
+        input: { name?: string; type?: string; institution?: string } 
+      },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      // Verify portfolio belongs to user
+      const existingPortfolio = await prisma.investmentPortfolio.findFirst({
+        where: {
+          id,
+          userId: context.user.id
+        }
+      });
+
+      if (!existingPortfolio) {
+        throw new Error('Portfolio not found or access denied');
+      }
+
+      const data: any = {};
+      if (input.name !== undefined) data.name = input.name;
+      if (input.type !== undefined) data.type = input.type;
+      if (input.institution !== undefined) data.institution = input.institution;
+
+      return prisma.investmentPortfolio.update({
+        where: { id },
+        data,
+        include: {
+          valueHistory: {
+            orderBy: { date: 'desc' }
+          }
+        }
+      });
+    },
+
+    deleteInvestmentPortfolio: async (
+      _parent: unknown,
+      { id }: { id: string },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      // Verify portfolio belongs to user
+      const existingPortfolio = await prisma.investmentPortfolio.findFirst({
+        where: {
+          id,
+          userId: context.user.id
+        }
+      });
+
+      if (!existingPortfolio) {
+        throw new Error('Portfolio not found or access denied');
+      }
+
+      await prisma.investmentPortfolio.delete({ where: { id } });
+      return true;
     },
   }
 };
