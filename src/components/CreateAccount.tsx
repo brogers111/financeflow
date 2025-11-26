@@ -4,18 +4,20 @@ import { useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { CREATE_ACCOUNT } from '@/lib/graphql/queries';
 
-type AccountType = 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD';
+type AccountType = 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'CASH';
+type AccountCategory = 'PERSONAL' | 'BUSINESS';
 
 export default function CreateAccount() {
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('CHECKING');
+  const [accountType, setAccountType] = useState<AccountCategory>('PERSONAL');
   const [institution, setInstitution] = useState('');
   const [balance, setBalance] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
   const [createAccount, { loading }] = useMutation(CREATE_ACCOUNT, {
-    refetchQueries: ['GetAccounts']
+    refetchQueries: ['GetAccounts', 'GetDashboardStats']
   });
 
   const resetForm = () => {
@@ -23,6 +25,7 @@ export default function CreateAccount() {
     setInstitution('');
     setBalance('');
     setType('CHECKING');
+    setAccountType('PERSONAL');
     setError('');
     setSuccess(false);
   };
@@ -37,6 +40,7 @@ export default function CreateAccount() {
           input: {
             name,
             type,
+            accountType,
             institution,
             balance: parseFloat(balance) || 0,
           }
@@ -71,7 +75,7 @@ export default function CreateAccount() {
       )}
 
       {!success && (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-2">
 
           {/* Account Name */}
           <div>
@@ -102,6 +106,23 @@ export default function CreateAccount() {
               <option value="CHECKING">Checking</option>
               <option value="SAVINGS">Savings</option>
               <option value="CREDIT_CARD">Credit Card</option>
+              <option value="CASH">Cash</option>
+            </select>
+          </div>
+
+          {/* Account Category */}
+          <div>
+            <label className="block text-md font-medium text-[#282427] mb-2">
+              Account Category *
+            </label>
+            <select
+              value={accountType}
+              onChange={(e) => setAccountType(e.target.value as AccountCategory)}
+              className="w-full p-2 border border-[#282427] rounded-lg cursor-pointer"
+              required
+            >
+              <option value="PERSONAL">Personal</option>
+              <option value="BUSINESS">Business</option>
             </select>
           </div>
 

@@ -199,7 +199,7 @@ export default function TransactionsPage() {
                       {isHovered && (
                         <button
                           onClick={() => setDeleteConfirm({ id: transaction.id, description: transaction.description })}
-                          className="p-1 hover:bg-red-100 rounded transition-colors cursor-pointer"
+                          className="p-1 border-2 border-transparent hover:border-red-600 rounded-md transition cursor-pointer"
                           title="Delete transaction"
                         >
                           <Image src="/trash.svg" alt="Delete" width={24} height={24} />

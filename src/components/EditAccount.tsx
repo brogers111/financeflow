@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { GET_ACCOUNTS, UPDATE_ACCOUNT, DELETE_ACCOUNT } from '@/lib/graphql/queries';
 
-type AccountType = 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD';
+type AccountType = 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'CASH';
+type AccountCategory = 'PERSONAL' | 'BUSINESS';
 
 export default function EditAccount() {
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('CHECKING');
+  const [accountType, setAccountType] = useState<AccountCategory>('PERSONAL');
   const [institution, setInstitution] = useState('');
   const [balance, setBalance] = useState('');
   const [error, setError] = useState('');
@@ -32,6 +34,7 @@ export default function EditAccount() {
       setSelectedAccountId(accountId);
       setName(account.name);
       setType(account.type);
+      setAccountType(account.accountType || 'PERSONAL');
       setInstitution(account.institution);
       setBalance(account.balance.toFixed(2));
       setError('');
@@ -51,6 +54,7 @@ export default function EditAccount() {
           input: {
             name,
             type,
+            accountType,
             institution,
             balance: parseFloat(balance)
           }
@@ -79,6 +83,7 @@ export default function EditAccount() {
       setName('');
       setInstitution('');
       setBalance('');
+      setAccountType('PERSONAL');
       setShowDeleteConfirm(false);
       await refetch();
     } catch (err: any) {
@@ -111,7 +116,7 @@ export default function EditAccount() {
       </div>
 
       {selectedAccountId && (
-        <form onSubmit={handleUpdate} className="space-y-4">
+        <form onSubmit={handleUpdate} className="space-y-2">
           {/* Account Name */}
           <div>
             <label className="block text-md font-medium text-[#282427] mb-2">
@@ -140,6 +145,23 @@ export default function EditAccount() {
               <option value="CHECKING">Checking</option>
               <option value="SAVINGS">Savings</option>
               <option value="CREDIT_CARD">Credit Card</option>
+              <option value="CASH">Cash</option>
+            </select>
+          </div>
+
+          {/* Account Category */}
+          <div>
+            <label className="block text-md font-medium text-[#282427] mb-2">
+              Account Category *
+            </label>
+            <select
+              value={accountType}
+              onChange={(e) => setAccountType(e.target.value as AccountCategory)}
+              className="w-full p-2 border border-[#282427] rounded-lg cursor-pointer"
+              required
+            >
+              <option value="PERSONAL">Personal</option>
+              <option value="BUSINESS">Business</option>
             </select>
           </div>
 

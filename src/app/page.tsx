@@ -243,6 +243,8 @@ export default function Dashboard() {
   }
 
   const stats = statsData?.dashboardStats || {};
+  const personalCash = stats.personalCash || 0;
+  const businessCash = stats.businessCash || 0;
   const accounts = accountsData?.accounts || [];
   const investments = investmentsData?.investmentPortfolios || [];
   const categories = categoriesData?.categories || [];
@@ -302,17 +304,28 @@ export default function Dashboard() {
   // Net worth history (simple snapshot per month based on current stats + investments)
   const netWorthHistory: any[] = [];
   if (netWorthTransactions?.transactions) {
-    const monthlyBalances: Record<string, { cash: number; investments: number }> = {};
-    const runningCash = stats.totalCash || 0;
+    const accounts = accountsData?.accounts || [];
+    
+    const currentPersonalCash = accounts
+      .filter((a: any) => (a.type === 'CHECKING' || a.type === 'SAVINGS' || a.type === 'CASH') && a.accountType === 'PERSONAL')
+      .reduce((sum: number, a: any) => sum + (a.balance || 0), 0);
+      
+    const currentBusinessCash = accounts
+      .filter((a: any) => (a.type === 'CHECKING' || a.type === 'SAVINGS' || a.type === 'CASH') && a.accountType === 'BUSINESS')
+      .reduce((sum: number, a: any) => sum + (a.balance || 0), 0);
+
     const runningInvestments = totalInvestments;
 
-    // build months from start to end
     const start = new Date(netWorthDateRange.startDate);
     const end = new Date(netWorthDateRange.endDate);
+    
+    const monthlyBalances: Record<string, { personalCash: number; businessCash: number; investments: number }> = {};
+    
     for (let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
       const key = d.toISOString().slice(0, 7);
       monthlyBalances[key] = {
-        cash: runningCash,
+        personalCash: currentPersonalCash,
+        businessCash: currentBusinessCash,
         investments: runningInvestments
       };
     }
@@ -322,9 +335,10 @@ export default function Dashboard() {
       .forEach(([month, values]) => {
         netWorthHistory.push({
           date: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-          cash: values.cash,
+          personalCash: values.personalCash,
+          businessCash: values.businessCash,
           investments: values.investments,
-          netWorth: values.cash + values.investments
+          netWorth: values.personalCash + values.businessCash + values.investments
         });
       });
   }
@@ -395,18 +409,13 @@ export default function Dashboard() {
 
     const parseShortDate = (str: string) => {
       const [monthShort, yearShort] = str.split(" ");
-      
       const monthIndex = [
         "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
       ].indexOf(monthShort);
-
       const fullYear = 2000 + parseInt(yearShort, 10);
-
       return new Date(fullYear, monthIndex, 1);
     };
-
     const parsed = parseShortDate(data.date);
-
     const fullMonth = parsed.toLocaleDateString("en-US", {
       month: "long",
       year: "numeric"
@@ -420,22 +429,32 @@ export default function Dashboard() {
           {fullMonth}
         </p>
 
-        {/* Cash */}
+        {/* Personal Cash */}
         <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
-          <p className="text-sm font-semibold text-[#35B79B]">
-            Cash:
+          <p className="text-sm font-semibold text-[#D496A7]">
+            Personal Cash:
           </p>
-          <p className="text-sm font-semibold text-[#35B79B]">
-            ${data.cash.toLocaleString()}
+          <p className="text-sm font-semibold text-[#D496A7]">
+            ${data.personalCash.toLocaleString()}
+          </p>
+        </div>
+
+        {/* Business Cash */}
+        <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
+          <p className="text-sm font-semibold text-[#EF8354]">
+            Business Cash:
+          </p>
+          <p className="text-sm font-semibold text-[#EF8354]">
+            ${data.businessCash.toLocaleString()}
           </p>
         </div>
 
         {/* Investments */}
         <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
-          <p className="text-sm font-semibold text-[#463A85]">
+          <p className="text-sm font-semibold text-[#6CA6C1]">
             Investments:
           </p>
-          <p className='text-sm font-semibold text-[#463A85]'>
+          <p className='text-sm font-semibold text-[#6CA6C1]'>
             {data.investments.toLocaleString('en-US', {
               style: 'currency',
               currency: 'USD',
@@ -544,7 +563,7 @@ export default function Dashboard() {
           {/* Total Cash */}
           <div className="bg-[#EEEBD9] p-4 rounded-lg">
             <p className="text-xs text-gray-500 mb-1">Total Cash</p>
-            <p className="text-2xl font-bold text-[#35B79B]">
+            <p className="text-2xl font-bold">
               ${stats.totalCash?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
             </p>
             <div className="flex items-center gap-1 mt-1">
@@ -559,7 +578,7 @@ export default function Dashboard() {
           {/* Total Investments */}
           <div className="bg-[#EEEBD9] p-4 rounded-lg">
             <p className="text-xs text-gray-500 mb-1">Investments</p>
-            <p className="text-2xl font-bold text-[#463A85]">
+            <p className="text-2xl font-bold">
               ${totalInvestments.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
             <div className="flex items-center gap-1 mt-1">
@@ -684,11 +703,14 @@ export default function Dashboard() {
                 <Tooltip content={<NetWorthTooltip />} cursor={false} />
                 <Legend content={<NetWorthLegend />}/>
 
-                {/* Cash */}
-                <Bar dataKey="cash" stackId="a" fill="#35B79B" radius={[10, 10, 10, 10]} />
+                {/* Personal Cash */}
+                <Bar dataKey="personalCash" stackId="a" fill="#D496A7" radius={[10, 10, 10, 10]} />
+
+                {/* Business Cash */}
+                <Bar dataKey="businessCash" stackId="a" fill="#EF8354" radius={[10, 10, 10, 10]} />
 
                 {/* Investments */}
-                <Bar dataKey="investments" stackId="a" fill="#463A85" radius={[10, 10, 10, 10]} />
+                <Bar dataKey="investments" stackId="a" fill="#6CA6C1" radius={[10, 10, 10, 10]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
