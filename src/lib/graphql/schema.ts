@@ -1,10 +1,16 @@
 import { gql } from '@apollo/client';
 
 export const typeDefs = gql`
+  enum AccountCategory {
+    PERSONAL
+    BUSINESS
+  }
+
   type Account {
     id: ID!
     name: String!
     type: AccountType!
+    accountType: AccountCategory!
     institution: String!
     balance: Float!
     currency: String!
@@ -97,6 +103,8 @@ export const typeDefs = gql`
 
   type DashboardScorecard {
     totalCash: Float!
+    personalCash: Float!
+    businessCash: Float!
     investments: Float!
     netWorth: Float!
     lastMonthIncome: Float!
@@ -224,6 +232,7 @@ export const typeDefs = gql`
   input CreateAccountInput {
     name: String!
     type: AccountType!
+    accountType: AccountCategory
     institution: String!
     balance: Float!
   }
@@ -231,6 +240,7 @@ export const typeDefs = gql`
   input UpdateAccountInput {
     name: String
     type: AccountType
+    accountType: AccountCategory
     institution: String
     balance: Float
     isActive: Boolean

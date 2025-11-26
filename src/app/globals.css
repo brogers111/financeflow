@@ -9,3 +9,7 @@
     font-family: var(--font-outfit), sans-serif;
   }
 }
+
+.recharts-wrapper *:focus {
+  outline: none !important;
+}

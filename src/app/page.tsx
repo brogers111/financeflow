@@ -31,21 +31,26 @@ const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F'
 
 export default function Dashboard() {
   const [categoryViewMode, setCategoryViewMode] = useState<'percentage' | 'amount'>('percentage');
-  const [categoryTimeframe, setCategoryTimeframe] = useState<'month' | 'year'>('month');
+  const [categoryTimeframe, setCategoryTimeframe] = useState<'month' | 'year'>('year');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   // Balance flow filters
   const [flowMonthsToShow, setFlowMonthsToShow] = useState(1);
-  const [flowSelectedMonth, setFlowSelectedMonth] = useState(new Date().getMonth()); // 0-11
-  const [flowSelectedYear, setFlowSelectedYear] = useState(new Date().getFullYear());
+  const [flowSelectedMonth, setFlowSelectedMonth] = useState(() => {
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    return lastMonth.getMonth();
+  });
+  const [flowSelectedYear, setFlowSelectedYear] = useState(() => {
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    return lastMonth.getFullYear();
+  });
   const [excludedAccountIds, setExcludedAccountIds] = useState<string[]>([]);
   const [excludedCategoryIds, setExcludedCategoryIds] = useState<string[]>([]);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-
-  // Net worth history filter
-  const [netWorthRange, setNetWorthRange] = useState<'3' | '6' | '12' | 'ytd'>('12');
 
   const { data: statsData, loading: statsLoading } = useQuery(GET_DASHBOARD_STATS);
   const { data: accountsData, loading: accountsLoading } = useQuery(GET_ACCOUNTS);
@@ -59,6 +64,14 @@ export default function Dashboard() {
   });
 
   // Yearly transactions (aggregate)
+  const { data: allTransactionsData } = useQuery(GET_TRANSACTIONS, {
+    variables: {
+      startDate: `1900-01-01`,
+      endDate: new Date().toISOString().split('T')[0]
+    }
+  });
+
+  // Yearly transactions for category breakdown
   const { data: yearlyTransactions } = useQuery(GET_TRANSACTIONS, {
     variables: {
       startDate: `${selectedYear}-01-01`,
@@ -88,20 +101,37 @@ export default function Dashboard() {
     }
   });
 
+
+  const earliestTransactionDate = useMemo(() => {
+    const transactions = allTransactionsData?.transactions || [];
+    if (transactions.length === 0) return new Date();
+    
+    const dates = transactions.map((t: any) => {
+      if (!t.date) return new Date();
+      if (!Number.isNaN(Number(t.date))) {
+        return new Date(Number(t.date));
+      }
+      return new Date(t.date);
+    }).filter(d => !isNaN(d.getTime()));
+    
+    return dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : new Date();
+  }, [allTransactionsData]);
+
+  const availableMonthsBack = useMemo(() => {
+    const now = new Date();
+    const earliest = earliestTransactionDate;
+    const monthsDiff = (now.getFullYear() - earliest.getFullYear()) * 12 + 
+                      (now.getMonth() - earliest.getMonth()) + 1;
+    return monthsDiff;
+  }, [earliestTransactionDate]);
+
   // Net worth date range
   const netWorthDateRange = useMemo(() => {
     const endDate = new Date();
-    const startDate = new Date();
-    if (netWorthRange === 'ytd') {
-      startDate.setMonth(0, 1); // Jan 1 current year
-      startDate.setHours(0, 0, 0, 0);
-    } else {
-      const months = parseInt(netWorthRange, 10);
-      startDate.setMonth(startDate.getMonth() - months);
-      startDate.setHours(0, 0, 0, 0);
-    }
+    const startDate = new Date(earliestTransactionDate);
+    startDate.setHours(0, 0, 0, 0);
     return { startDate, endDate };
-  }, [netWorthRange]);
+  }, [earliestTransactionDate]);
 
   // Net worth transactions for range
   const { data: netWorthTransactions } = useQuery(GET_TRANSACTIONS, {
@@ -363,31 +393,88 @@ export default function Dashboard() {
     if (!active || !payload || !payload[0]) return null;
     const data = payload[0].payload;
 
+    const parseShortDate = (str: string) => {
+      const [monthShort, yearShort] = str.split(" ");
+      
+      const monthIndex = [
+        "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
+      ].indexOf(monthShort);
+
+      const fullYear = 2000 + parseInt(yearShort, 10);
+
+      return new Date(fullYear, monthIndex, 1);
+    };
+
+    const parsed = parseShortDate(data.date);
+
+    const fullMonth = parsed.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric"
+    });
+
+
     return (
       <div className="max-w-md">
         {/* Date */}
         <p className="text-xs font-semibold bg-[#EEEBD9] px-2 border border-[#282427] rounded shadow-lg inline-block">
-          {data.date}
+          {fullMonth}
         </p>
 
         {/* Cash */}
-        <div className="mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
-          <p className="text-sm font-semibold text-[#35B79B]">Cash: ${data.cash.toLocaleString()}</p>
+        <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
+          <p className="text-sm font-semibold text-[#35B79B]">
+            Cash:
+          </p>
+          <p className="text-sm font-semibold text-[#35B79B]">
+            ${data.cash.toLocaleString()}
+          </p>
         </div>
 
         {/* Investments */}
-        <div className="mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
+        <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
           <p className="text-sm font-semibold text-[#463A85]">
-            Investments: ${data.investments.toLocaleString()}
+            Investments:
+          </p>
+          <p className='text-sm font-semibold text-[#463A85]'>
+            {data.investments.toLocaleString('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </p>
         </div>
 
         {/* Net Worth */}
-        <div className="mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
+        <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
           <p className="text-md font-bold text-[#282427]">
-            Net Worth: ${data.netWorth.toLocaleString()}
+            Net Worth:
+          </p>
+          <p className="text-md font-bold text-[#282427]">
+            ${data.netWorth.toLocaleString()}
           </p>
         </div>
+      </div>
+    );
+  };
+
+  const NetWorthLegend = ({ payload }) => {
+    return (
+      <div className="flex gap-4 justify-center">
+        {payload.map((entry, index) => (
+          <div key={index} className="flex items-center gap-2">
+            {/* Circle color indicator */}
+            <span
+              className="inline-block w-3 h-3 rounded-full"
+              style={{ backgroundColor: entry.color }}
+            ></span>
+
+            {/* Capitalized label */}
+            <span className="text-sm font-medium capitalize">
+              {entry.value}
+            </span>
+          </div>
+        ))}
       </div>
     );
   };
@@ -513,9 +600,9 @@ export default function Dashboard() {
                   setFlowSelectedYear(year);
                   setFlowSelectedMonth(month);
                 }}
-                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300"
+                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 focus:outline-none focus:ring-0"
               >
-                {Array.from({ length: 12 }, (_, i) => {
+                {Array.from({ length: availableMonthsBack }, (_, i) => {
                   const d = new Date();
                   d.setMonth(d.getMonth() - i);
                   return (
@@ -530,20 +617,20 @@ export default function Dashboard() {
               <select
                 value={flowMonthsToShow}
                 onChange={(e) => setFlowMonthsToShow(parseInt(e.target.value, 10))}
-                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300"
+                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 focus:outline-none focus:ring-0"
               >
                 <option value={1}>1 Month</option>
-                <option value={2}>2 Months</option>
-                <option value={3}>3 Months</option>
-                <option value={4}>4 Months</option>
-                <option value={6}>6 Months</option>
-                <option value={12}>12 Months</option>
+                <option value={3} disabled={availableMonthsBack < 3}>3 Months</option>
+                <option value={6} disabled={availableMonthsBack < 6}>6 Months</option>
+                <option value={12} disabled={availableMonthsBack < 12}>12 Months</option>
+                <option value={24} disabled={availableMonthsBack < 24}>24 Months</option>
+                <option value={60} disabled={availableMonthsBack < 60}>60 Months</option>
               </select>
 
               {/* Account Filter */}
               <button
                 onClick={() => setShowAccountModal(!showAccountModal)}
-                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300"
+                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 focus:outline-none focus:ring-0"
               >
                 Accounts {excludedAccountIds.length > 0 && `(-${excludedAccountIds.length})`}
               </button>
@@ -551,7 +638,7 @@ export default function Dashboard() {
               {/* Category Filter */}
               <button
                 onClick={() => setShowCategoryModal(!showCategoryModal)}
-                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300"
+                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 focus:outline-none focus:ring-0"
               >
                 Categories {excludedCategoryIds.length > 0 && `(-${excludedCategoryIds.length})`}
               </button>
@@ -585,18 +672,8 @@ export default function Dashboard() {
 
         {/* Net Worth History Graph */}
         <div className="bg-[#EEEBD9] rounded-lg p-4">
-          <div className="flex justify-between items-center mb-4">
+          <div className="mb-4">
             <h2 className="text-lg font-semibold">Net Worth History</h2>
-            <select
-              value={netWorthRange}
-              onChange={(e) => setNetWorthRange(e.target.value as '3' | '6' | '12' | 'ytd')}
-              className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300"
-            >
-              <option value="3">Last 3 Months</option>
-              <option value="6">Last 6 Months</option>
-              <option value="12">Last 12 Months</option>
-              <option value="ytd">Year to Date</option>
-            </select>
           </div>
           {netWorthHistory.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
@@ -605,7 +682,7 @@ export default function Dashboard() {
                 <XAxis dataKey="date" stroke="#666" />
                 <YAxis stroke="#666" />
                 <Tooltip content={<NetWorthTooltip />} cursor={false} />
-                <Legend />
+                <Legend content={<NetWorthLegend />}/>
 
                 {/* Cash */}
                 <Bar dataKey="cash" stackId="a" fill="#35B79B" radius={[10, 10, 10, 10]} />

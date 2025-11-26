@@ -1,13 +1,21 @@
-import { PrismaClient, AccountType, TransactionType, Category, Prisma } from '@prisma/client';
+import { PrismaClient, AccountType, AccountCategory, TransactionType, Category, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-interface AccountInput {
+interface CreateAccountInput {
   name: string;
   type: AccountType;
+  accountType?: AccountCategory;
   institution: string;
+  balance: number;
+}
+
+interface UpdateAccountInput {
+  name?: string;
+  type?: AccountType;
+  accountType?: AccountCategory;
+  institution?: string;
   balance?: number;
-  currency?: string;
   isActive?: boolean;
 }
 
@@ -104,10 +112,23 @@ export const resolvers = {
         }
       });
 
-      // Calculate total cash (checking, savings, cash accounts)
-      const totalCash = accounts
-        .filter(a => a.type === AccountType.CHECKING || a.type === AccountType.SAVINGS || a.type === AccountType.CASH)
+      // Calculate personal and business cash separately
+      const personalCash = accounts
+        .filter(a => 
+          (a.type === AccountType.CHECKING || a.type === AccountType.SAVINGS || a.type === AccountType.CASH) &&
+          a.accountType === AccountCategory.PERSONAL
+        )
         .reduce((sum, a) => sum + a.balance, 0);
+
+      const businessCash = accounts
+        .filter(a => 
+          (a.type === AccountType.CHECKING || a.type === AccountType.SAVINGS || a.type === AccountType.CASH) &&
+          a.accountType === AccountCategory.BUSINESS
+        )
+        .reduce((sum, a) => sum + a.balance, 0);
+
+      // Total cash is sum of both
+      const totalCash = personalCash + businessCash;
 
       // Get investment portfolios
       const investmentPortfolios = await prisma.investmentPortfolio.findMany({
@@ -229,6 +250,8 @@ export const resolvers = {
 
       return {
         totalCash,
+        personalCash,
+        businessCash,
         investments,
         netWorth,
         lastMonthIncome: lastMonthIncomeTotal,
@@ -361,7 +384,7 @@ export const resolvers = {
 
   Mutation: {
     // Create account
-    createAccount: async (_parent: unknown, { input }: { input: AccountInput }, context: any) => {
+    createAccount: async (_parent: unknown, { input }: { input: CreateAccountInput }, context: any) => {
       if (!context.user?.id){
         throw new Error('Not authenticated');
       }
@@ -370,10 +393,9 @@ export const resolvers = {
         data: {
           name: input.name,
           type: input.type,
+          accountType: input.accountType ?? 'PERSONAL',
           institution: input.institution,
           balance: input.balance ?? 0,
-          currency: input.currency ?? 'USD',
-          isActive: input.isActive ?? true,
           userId: context.user.id
         }
       });
@@ -382,7 +404,7 @@ export const resolvers = {
     // Update account
     updateAccount: async (
       _parent: unknown, 
-      { id, input }: { id: string; input: Partial<AccountInput> },
+      { id, input }: { id: string; input: Partial<UpdateAccountInput> },
       context: any
     ) => {
       if (!context.user?.id) {
@@ -405,9 +427,9 @@ export const resolvers = {
       
       if (input.name !== undefined) data.name = input.name;
       if (input.type !== undefined) data.type = input.type;
+      if (input.accountType !== undefined) data.accountType = input.accountType;
       if (input.institution !== undefined) data.institution = input.institution;
       if (input.balance !== undefined) data.balance = input.balance;
-      if (input.currency !== undefined) data.currency = input.currency;
       if (input.isActive !== undefined) data.isActive = input.isActive;
 
       return prisma.financialAccount.update({

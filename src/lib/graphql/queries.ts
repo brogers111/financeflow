@@ -7,6 +7,7 @@ export const GET_ACCOUNTS = gql`
       id
       name
       type
+      accountType
       institution
       balance
       isActive
@@ -70,6 +71,8 @@ export const GET_DASHBOARD_STATS = gql`
   query GetDashboardStats {
     dashboardStats {
       totalCash
+      personalCash
+      businessCash
       investments
       netWorth
       lastMonthIncome
@@ -123,6 +126,7 @@ export const CREATE_ACCOUNT = gql`
       id
       name
       type
+      accountType
       institution
       balance
       isActive
@@ -136,6 +140,7 @@ export const UPDATE_ACCOUNT = gql`
       id
       name
       type
+      accountType
       institution
       balance
       isActive
