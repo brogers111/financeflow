@@ -19,14 +19,6 @@ interface UpdateAccountInput {
   isActive?: boolean;
 }
 
-interface CategoryInput {
-  name: string;
-  type: TransactionType;
-  icon?: string;
-  color?: string;
-  parentId?: string;
-}
-
 interface PaycheckInput {
   accountId: string;
   date: string;
@@ -39,6 +31,26 @@ interface TransactionFilters {
   type?: TransactionType;
   startDate?: string;
   endDate?: string;
+}
+
+async function calculateActualAmount(
+  categoryId: string | null,
+  startDate: Date,
+  endDate: Date,
+  userId: string
+): Promise<number> {
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      categoryId: categoryId || null,
+      date: {
+        gte: startDate,
+        lte: endDate
+      },
+      account: { userId }
+    }
+  });
+
+  return transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
 }
 
 export const resolvers = {
@@ -105,9 +117,6 @@ export const resolvers = {
           subcategories: true,
         },
       });
-
-      console.log('Found categories:', categories.length);
-      console.log('Categories:', categories);
 
       return categories;
     },
@@ -628,6 +637,44 @@ export const resolvers = {
         suggestedAmount: Math.round((data.total / data.count) * 100) / 100,
         basedOnPeriods: data.periods
       }));
+    },
+
+        checkBudgetOverlap: async (
+      _parent: unknown,
+      { startDate, endDate }: { startDate: string; endDate: string },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      const overlapping = await prisma.budgetPeriod.findMany({
+        where: {
+          userId: context.user.id,
+          AND: [
+            { startDate: { lte: end } },
+            { endDate: { gte: start } }
+          ]
+        },
+        include: {
+          lineItems: {
+            include: { category: true }
+          }
+        }
+      });
+
+      return {
+        hasOverlap: overlapping.length > 0,
+        overlappingPeriods: overlapping.map(p => ({
+          ...p,
+          startDate: p.startDate.toISOString(),
+          endDate: p.endDate.toISOString(),
+          createdAt: p.createdAt.toISOString()
+        }))
+      };
     },
   },
 
@@ -1354,44 +1401,6 @@ export const resolvers = {
       return true;
     },
 
-    checkBudgetOverlap: async (
-      _parent: unknown,
-      { startDate, endDate }: { startDate: string; endDate: string },
-      context: any
-    ) => {
-      if (!context.user?.id) {
-        throw new Error('Not authenticated');
-      }
-
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      const overlapping = await prisma.budgetPeriod.findMany({
-        where: {
-          userId: context.user.id,
-          AND: [
-            { startDate: { lte: end } },
-            { endDate: { gte: start } }
-          ]
-        },
-        include: {
-          lineItems: {
-            include: { category: true }
-          }
-        }
-      });
-
-      return {
-        hasOverlap: overlapping.length > 0,
-        overlappingPeriods: overlapping.map(p => ({
-          ...p,
-          startDate: p.startDate.toISOString(),
-          endDate: p.endDate.toISOString(),
-          createdAt: p.createdAt.toISOString()
-        }))
-      };
-    },
-
     createBudgetPeriod: async (
       _parent: unknown,
       { input }: { input: { startDate: string; endDate: string; copyFromPeriodId?: string } },
@@ -1609,5 +1618,95 @@ export const resolvers = {
 
       return true;
     },
+  },
+
+  BudgetPeriod: {
+    // Computes totalBudgeted by summing all line item budget amounts
+    totalBudgeted: async (parent: any) => {
+      const lineItems = await prisma.budgetLineItem.findMany({
+        where: { budgetPeriodId: parent.id }
+      });
+      return lineItems.reduce((sum, item) => sum + item.budgetAmount, 0);
+    },
+
+    // Computes totalActual by summing all line item actuals/overrides
+    totalActual: async (parent: any, _args: unknown, context: any) => {
+      const lineItems = await prisma.budgetLineItem.findMany({
+        where: { budgetPeriodId: parent.id }
+      });
+
+      const period = await prisma.budgetPeriod.findUnique({
+        where: { id: parent.id }
+      });
+
+      if (!period) return 0;
+
+      const totals = await Promise.all(
+        lineItems.map(async (item) => {
+          // If user manually overrode, use that
+          if (item.manualOverride !== null) {
+            return item.manualOverride;
+          }
+
+          // Otherwise calculate from transactions
+          const actualAmount = await calculateActualAmount(
+            item.categoryId,
+            period.startDate,
+            period.endDate,
+            period.userId
+          );
+
+          return actualAmount;
+        })
+      );
+
+      return totals.reduce((sum, val) => sum + val, 0);
+    },
+
+    // Computes balance (budgeted - actual)
+    totalBalance: async (parent: any, _args: unknown, context: any) => {
+      // Calls the other field resolvers defined above
+      const budgeted = await resolvers.BudgetPeriod.totalBudgeted(parent);
+      const actual = await resolvers.BudgetPeriod.totalActual(parent, _args, context);
+      return budgeted - actual;
+    }
+  },
+
+  BudgetLineItem: {
+    // Calculates actual spending from transactions for this line item
+    actualAmount: async (parent: any) => {
+      const period = await prisma.budgetPeriod.findUnique({
+        where: { id: parent.budgetPeriodId }
+      });
+
+      if (!period) return 0;
+
+      return calculateActualAmount(
+        parent.categoryId,
+        period.startDate,
+        period.endDate,
+        period.userId
+      );
+    },
+
+    // Shows either manual override OR actual (whichever exists)
+    displayAmount: async (parent: any) => {
+      if (parent.manualOverride !== null) {
+        return parent.manualOverride;
+      }
+
+      return resolvers.BudgetLineItem.actualAmount(parent);
+    },
+
+    // Calculates how over/under budget this line item is
+    balance: async (parent: any) => {
+      const display = await resolvers.BudgetLineItem.displayAmount(parent);
+      return parent.budgetAmount - display;
+    },
+
+    isManuallyOverridden: (parent: any) => {
+      return parent.manualOverride !== null;
+    }
   }
 };
+

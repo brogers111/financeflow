@@ -224,6 +224,9 @@ export const typeDefs = gql`
     budgetPeriods(pinned: Boolean): [BudgetPeriod!]!
     budgetPeriod(id: ID!): BudgetPeriod
     suggestBudgetAmounts(startDate: String!, endDate: String!): [SuggestedBudgetAmount!]!
+
+    # Helper to check for overlaps before creating
+    checkBudgetOverlap(startDate: String!, endDate: String!): BudgetOverlapWarning!
   }
 
   type SuggestedBudgetAmount {
@@ -302,9 +305,6 @@ export const typeDefs = gql`
     createBudgetLineItem(budgetPeriodId: ID!, input: CreateBudgetLineItemInput!): BudgetLineItem!
     updateBudgetLineItem(id: ID!, input: UpdateBudgetLineItemInput!): BudgetLineItem!
     deleteBudgetLineItem(id: ID!): Boolean!
-    
-    # Helper mutation to check for overlaps before creating
-    checkBudgetOverlap(startDate: String!, endDate: String!): BudgetOverlapWarning!
   }
 
   input CreateAccountInput {

@@ -12,6 +12,7 @@ export default function Navigation() {
   const navItems = [
     { href: '/', label: 'Dashboard', icon: '/dashboard.svg' },
     { href: '/transactions', label: 'Transactions', icon: '/transactions.svg' },
+    { href: '/budget', label: 'Budget', icon: '/budget.svg' },
     { href: '/upload', label: 'Upload', icon: '/upload.svg' },
     { href: '/edit', label: 'Edit', icon: '/edit.svg' },
   ];
