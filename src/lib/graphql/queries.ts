@@ -67,19 +67,52 @@ export const GET_CATEGORIES = gql`
   }
 `;
 
+export const CREATE_CATEGORY = gql`
+  mutation CreateCategory($input: CreateCategoryInput!) {
+    createCategory(input: $input) {
+      id
+      name
+      type
+      icon
+      color
+    }
+  }
+`;
+
+export const UPDATE_CATEGORY = gql`
+  mutation UpdateCategory($id: ID!, $input: UpdateCategoryInput!) {
+    updateCategory(id: $id, input: $input) {
+      id
+      name
+      type
+      color
+      icon
+    }
+  }
+`;
+
+export const DELETE_CATEGORY = gql`
+  mutation DeleteCategory($id: ID!) {
+    deleteCategory(id: $id)
+  }
+`;
+
 export const GET_DASHBOARD_STATS = gql`
   query GetDashboardStats {
     dashboardStats {
       totalCash
+      totalSavings
       personalCash
       businessCash
       investments
       netWorth
+      lastMonthChange
       lastMonthIncome
       lastMonthExpenses
       incomeChange
       expensesChange
       cashChange
+      savingsChange
       investmentChange
       netWorthChange
       avgMonthlySpend

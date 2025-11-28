@@ -243,25 +243,34 @@ export default function TransactionsPage() {
 
                           {transaction.type === 'TRANSFER' ? (
                             <>
-                              <optgroup label="Expense Categories">
-                                {categories
-                                  .filter((c: any) => c.type === 'EXPENSE')
-                                  .map((category: any) => (
-                                    <option key={category.id} value={category.id}>
-                                      {category.icon} {category.name}
-                                    </option>
-                                  ))}
-                              </optgroup>
+                              {categories
+                                .filter((c: any) => c.type === 'TRANSFER')
+                                .map((category: any) => (
+                                  <option key={category.id} value={category.id}>
+                                    {category.icon} {category.name}
+                                  </option>
+                                ))}
 
-                              <optgroup label="Income Categories">
-                                {categories
-                                  .filter((c: any) => c.type === 'INCOME')
-                                  .map((category: any) => (
-                                    <option key={category.id} value={category.id}>
-                                      {category.icon} {category.name}
-                                    </option>
-                                  ))}
-                              </optgroup>
+                              {/* Optionally show other categories too if no transfer categories exist */}
+                              {categories.filter((c: any) => c.type === 'TRANSFER').length === 0 && (
+                                <>
+                                  {categories
+                                    .filter((c: any) => c.type === 'EXPENSE')
+                                    .map((category: any) => (
+                                      <option key={category.id} value={category.id}>
+                                        {category.icon} {category.name}
+                                      </option>
+                                    ))}
+
+                                  {categories
+                                    .filter((c: any) => c.type === 'INCOME')
+                                    .map((category: any) => (
+                                      <option key={category.id} value={category.id}>
+                                        {category.icon} {category.name}
+                                      </option>
+                                    ))}
+                                </>
+                              )}
                             </>
                           ) : (
                             categories

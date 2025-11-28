@@ -248,15 +248,16 @@ export default function Dashboard() {
   const accounts = accountsData?.accounts || [];
   const investments = investmentsData?.investmentPortfolios || [];
   const categories = categoriesData?.categories || [];
-
+  
   const totalInvestments = investments.reduce(
     (sum: number, inv: any) => sum + (inv.currentValue || 0),
     0
   );
-
+  
   const incomeChange = stats.incomeChange || 0;
   const expensesChange = stats.expensesChange || 0;
   const cashChange = stats.cashChange || 0;
+  const savingsChange = stats.savingsChange || 0;
   const investmentChange = stats.investmentChange || 0;
   const netWorthChange = stats.netWorthChange || 0;
 
@@ -530,40 +531,24 @@ export default function Dashboard() {
 
         {/* Top Scorecards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          {/* Monthly Income */}
+          {/* Last Month Change */}
           <div className="p-4 rounded-lg bg-[#EEEBD9]">
-            <p className="text-xs text-gray-500 mb-1">Last Month Income</p>
-            <p className="text-2xl font-bold text-gray-900">
-              ${stats.lastMonthIncome?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+            <p className="text-xs text-gray-500 mb-1">Last Month Change</p>
+            <p className={`text-2xl font-bold ${(stats.lastMonthChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {(stats.lastMonthChange || 0) >= 0 ? '+' : ''}
+              ${stats.lastMonthChange?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
             </p>
             <div className="flex items-center gap-1 mt-1">
-              {incomeChange >= 0 ? (
-                <span className="text-green-600 text-xs">↑ {incomeChange.toFixed(1)}%</span>
-              ) : (
-                <span className="text-red-600 text-xs">↓ {Math.abs(incomeChange).toFixed(1)}%</span>
-              )}
+              <span className="text-xs text-gray-500">
+                Income - Expenses
+              </span>
             </div>
           </div>
 
-          {/* Monthly Expenses */}
-          <div className="bg-[#EEEBD9] p-4 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">Last Month Expenses</p>
-            <p className="text-2xl font-bold text-gray-900">
-              ${stats.lastMonthExpenses?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
-            </p>
-            <div className="flex items-center gap-1 mt-1">
-              {expensesChange >= 0 ? (
-                <span className="text-red-600 text-xs">↑ {expensesChange.toFixed(1)}%</span>
-              ) : (
-                <span className="text-green-600 text-xs">↓ {Math.abs(expensesChange).toFixed(1)}%</span>
-              )}
-            </div>
-          </div>
-
-          {/* Total Cash */}
+          {/* Total Cash (Checking - Credit Cards) */}
           <div className="bg-[#EEEBD9] p-4 rounded-lg">
             <p className="text-xs text-gray-500 mb-1">Total Cash</p>
-            <p className="text-2xl font-bold">
+            <p className="text-2xl font-bold text-gray-900">
               ${stats.totalCash?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
             </p>
             <div className="flex items-center gap-1 mt-1">
@@ -575,10 +560,25 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Total Savings */}
+          <div className="bg-[#EEEBD9] p-4 rounded-lg">
+            <p className="text-xs text-gray-500 mb-1">Total Savings</p>
+            <p className="text-2xl font-bold text-[#35B79B]">
+              ${stats.totalSavings?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+            </p>
+            <div className="flex items-center gap-1 mt-1">
+              {(savingsChange || 0) >= 0 ? (
+                <span className="text-green-600 text-xs">↑ {(savingsChange || 0).toFixed(1)}%</span>
+              ) : (
+                <span className="text-red-600 text-xs">↓ {Math.abs(savingsChange || 0).toFixed(1)}%</span>
+              )}
+            </div>
+          </div>
+
           {/* Total Investments */}
           <div className="bg-[#EEEBD9] p-4 rounded-lg">
             <p className="text-xs text-gray-500 mb-1">Investments</p>
-            <p className="text-2xl font-bold">
+            <p className="text-2xl font-bold text-[#463A85]">
               ${totalInvestments.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
             <div className="flex items-center gap-1 mt-1">
@@ -760,7 +760,7 @@ export default function Dashboard() {
         {/* Category Spend Pie Chart */}
         <div className="bg-[#EEEBD9] rounded-lg p-4">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-md font-semibold text-gray-900">Category Breakdowns</h2>
+            <h2 className="text-md font-semibold text-gray-900">Expense Breakdown</h2>
             <div className="flex gap-2">
               <button
                 onClick={() => setCategoryViewMode(categoryViewMode === 'percentage' ? 'amount' : 'percentage')}
@@ -925,7 +925,9 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {categories.map((category: any) => {
+            {categories
+              .filter((category: any) => category.type !== 'TRANSFER')
+              .map((category: any) => {
               const isSelected = !excludedCategoryIds.includes(category.id);
 
               return (

@@ -103,15 +103,18 @@ export const typeDefs = gql`
 
   type DashboardScorecard {
     totalCash: Float!
+    totalSavings: Float!
     personalCash: Float!
     businessCash: Float!
     investments: Float!
     netWorth: Float!
+    lastMonthChange: Float!
     lastMonthIncome: Float!
     lastMonthExpenses: Float!
     incomeChange: Float!
     expensesChange: Float!
     cashChange: Float!
+    savingsChange: Float!
     investmentChange: Float!
     netWorthChange: Float!
     avgMonthlySpend: Float!
@@ -136,6 +139,56 @@ export const typeDefs = gql`
     date: String!
     notes: String
     createdAt: String!
+  }
+
+  type BudgetPeriod {
+    id: ID!
+    userId: String!
+    startDate: String!
+    endDate: String!
+    isPinned: Boolean!
+    lineItems: [BudgetLineItem!]!
+    totalBudgeted: Float!      # Computed: sum of all budgetAmounts
+    totalActual: Float!         # Computed: sum of all actual/override amounts
+    totalBalance: Float!        # Computed: totalBudgeted - totalActual
+    createdAt: String!
+  }
+
+  type BudgetLineItem {
+    id: ID!
+    budgetPeriodId: String!
+    category: Category
+    description: String!
+    budgetAmount: Float!
+    actualAmount: Float         # Auto-calculated
+    manualOverride: Float       # User override
+    displayAmount: Float!       # Computed: manualOverride ?? actualAmount
+    balance: Float!             # Computed: budgetAmount - displayAmount
+    isManuallyOverridden: Boolean! # Computed: manualOverride != null
+  }
+
+  type BudgetOverlapWarning {
+    hasOverlap: Boolean!
+    overlappingPeriods: [BudgetPeriod!]!
+  }
+
+  input CreateBudgetPeriodInput {
+    startDate: String!
+    endDate: String!
+    copyFromPeriodId: ID  # Optional: copy line items from another period
+  }
+
+  input CreateBudgetLineItemInput {
+    categoryId: ID
+    description: String!
+    budgetAmount: Float!
+    manualOverride: Float
+  }
+
+  input UpdateBudgetLineItemInput {
+    description: String
+    budgetAmount: Float
+    manualOverride: Float
   }
 
   type Query {
@@ -167,6 +220,17 @@ export const typeDefs = gql`
 
     investmentPortfolios: [InvestmentPortfolio!]!
     investmentPortfolio(id: ID!): InvestmentPortfolio
+
+    budgetPeriods(pinned: Boolean): [BudgetPeriod!]!
+    budgetPeriod(id: ID!): BudgetPeriod
+    suggestBudgetAmounts(startDate: String!, endDate: String!): [SuggestedBudgetAmount!]!
+  }
+
+  type SuggestedBudgetAmount {
+    categoryId: ID
+    categoryName: String!
+    suggestedAmount: Float!
+    basedOnPeriods: [String!]!
   }
 
   type PaycheckFlowData {
@@ -206,6 +270,8 @@ export const typeDefs = gql`
     
     # Category management
     createCategory(input: CreateCategoryInput!): Category!
+    updateCategory(id: ID!, input: UpdateCategoryInput!): Category!
+    deleteCategory(id: ID!): Boolean!
     
     # Paycheck tracking
     recordPaycheck(input: PaycheckInput!): Paycheck!
@@ -227,6 +293,18 @@ export const typeDefs = gql`
       date: String!
       notes: String
     ): InvestmentPortfolio!
+
+    createBudgetPeriod(input: CreateBudgetPeriodInput!): BudgetPeriod!
+    updateBudgetPeriod(id: ID!, input: UpdateBudgetPeriodInput!): BudgetPeriod!
+    deleteBudgetPeriod(id: ID!): Boolean!
+    togglePinBudgetPeriod(id: ID!): BudgetPeriod!
+    
+    createBudgetLineItem(budgetPeriodId: ID!, input: CreateBudgetLineItemInput!): BudgetLineItem!
+    updateBudgetLineItem(id: ID!, input: UpdateBudgetLineItemInput!): BudgetLineItem!
+    deleteBudgetLineItem(id: ID!): Boolean!
+    
+    # Helper mutation to check for overlaps before creating
+    checkBudgetOverlap(startDate: String!, endDate: String!): BudgetOverlapWarning!
   }
 
   input CreateAccountInput {
@@ -244,6 +322,12 @@ export const typeDefs = gql`
     institution: String
     balance: Float
     isActive: Boolean
+  }
+
+  input UpdateBudgetPeriodInput {
+    startDate: String
+    endDate: String
+    isPinned: Boolean
   }
 
   input CreateTransactionInput {
@@ -270,6 +354,12 @@ export const typeDefs = gql`
     icon: String
     color: String
     parentId: ID
+  }
+
+  input UpdateCategoryInput {
+    name: String
+    icon: String
+    color: String
   }
 
   input PaycheckInput {

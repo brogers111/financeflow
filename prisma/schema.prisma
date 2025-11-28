@@ -9,13 +9,15 @@ datasource db {
 
 // User models for NextAuth - MUST use exact names PrismaAdapter expects
 model User {
-  id            String    @id @default(uuid())
+  id            String         @id @default(uuid())
   name          String?
-  email         String?   @unique
+  email         String?        @unique
   emailVerified DateTime?
   image         String?
   accounts      Account[]
   sessions      Session[]
+  categories    Category[]
+  budgetPeriods BudgetPeriod[]
 
   financialAccounts      FinancialAccount[]
   investmentPortfolios   InvestmentPortfolio[]
@@ -137,19 +139,23 @@ enum TransactionType {
 
 model Category {
   id            String          @id @default(uuid())
-  name          String          @unique
+  name          String
   type          TransactionType
   icon          String?
   color         String?
   parentId      String?
   parent        Category?       @relation("Subcategories", fields: [parentId], references: [id])
   subcategories Category[]      @relation("Subcategories")
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  transactions Transaction[]
-
-  createdAt              DateTime                @default(now())
+  transactions           Transaction[]
   categorizationPatterns CategorizationPattern[]
+  budgetLineItems        BudgetLineItem[]
 
+  createdAt DateTime @default(now())
+
+  @@unique([name, userId])
   @@index([type])
 }
 
@@ -237,4 +243,38 @@ model InvestmentSnapshot {
   createdAt DateTime @default(now())
 
   @@map("InvestmentSnapshot")
+}
+
+model BudgetPeriod {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate   DateTime
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lineItems BudgetLineItem[]
+
+  @@index([userId, startDate, endDate])
+}
+
+model BudgetLineItem {
+  id             String       @id @default(uuid())
+  budgetPeriodId String
+  budgetPeriod   BudgetPeriod @relation(fields: [budgetPeriodId], references: [id], onDelete: Cascade)
+
+  categoryId String? // Nullable because "Uncategorized" is valid
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  description    String
+  budgetAmount   Float
+  actualAmount   Float? // Auto-calculated from transactions
+  manualOverride Float? // User can override the auto-calculated amount
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([budgetPeriodId, categoryId])
 }

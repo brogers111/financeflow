@@ -88,14 +88,28 @@ export const resolvers = {
     },
 
     // Fetch categories - properly typed now
-    categories: async (_parent: unknown, { type }: { type?: TransactionType }) => {
-      return prisma.category.findMany({
-        where: type ? { type } : undefined,
-        include: { 
+    categories: async (_parent: unknown, { type }: { type?: TransactionType }, context: any) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      console.log('Fetching categories for userId:', context.user.id);
+      console.log('Filter by type:', type);
+
+      const categories = await prisma.category.findMany({
+        where: {
+          userId: context.user.id,
+          ...(type && { type }),
+        },
+        include: {
           subcategories: true,
-          parent: true 
-        }
+        },
       });
+
+      console.log('Found categories:', categories.length);
+      console.log('Categories:', categories);
+
+      return categories;
     },
 
     // Fetch dashboard stats
@@ -112,7 +126,23 @@ export const resolvers = {
         }
       });
 
-      // Calculate personal and business cash separately
+      // Calculate total savings (all SAVINGS accounts)
+      const totalSavings = accounts
+        .filter(a => a.type === AccountType.SAVINGS)
+        .reduce((sum, a) => sum + a.balance, 0);
+
+      // Calculate total cash (CHECKING minus CREDIT_CARD)
+      const checkingBalance = accounts
+        .filter(a => a.type === AccountType.CHECKING)
+        .reduce((sum, a) => sum + a.balance, 0);
+      
+      const creditCardBalance = accounts
+        .filter(a => a.type === AccountType.CREDIT_CARD)
+        .reduce((sum, a) => sum + Math.abs(a.balance), 0);
+      
+      const totalCash = checkingBalance - creditCardBalance;
+
+      // Calculate personal and business cash separately (for Net Worth History)
       const personalCash = accounts
         .filter(a => 
           (a.type === AccountType.CHECKING || a.type === AccountType.SAVINGS || a.type === AccountType.CASH) &&
@@ -127,20 +157,16 @@ export const resolvers = {
         )
         .reduce((sum, a) => sum + a.balance, 0);
 
-      // Total cash is sum of both
-      const totalCash = personalCash + businessCash;
-
       // Get investment portfolios
       const investmentPortfolios = await prisma.investmentPortfolio.findMany({
         where: { userId: context.user.id }
       });
 
       const investments = investmentPortfolios.reduce((sum, p) => sum + p.currentValue, 0);
-      const netWorth = totalCash + investments;
+      const netWorth = totalCash + totalSavings + investments;
 
       // Get current month and last month dates
       const now = new Date();
-      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
 
@@ -201,6 +227,8 @@ export const resolvers = {
       // Calculate month-over-month changes
       const lastMonthIncomeTotal = lastMonthIncome._sum.amount || 0;
       const lastMonthExpensesTotal = Math.abs(lastMonthExpenses._sum.amount || 0);
+      const lastMonthChange = lastMonthIncomeTotal - lastMonthExpensesTotal;
+      
       const monthBeforeIncomeTotal = monthBeforeIncome._sum.amount || 0;
       const monthBeforeExpensesTotal = Math.abs(monthBeforeExpenses._sum.amount || 0);
 
@@ -212,24 +240,80 @@ export const resolvers = {
         ? ((lastMonthExpensesTotal - monthBeforeExpensesTotal) / monthBeforeExpensesTotal) * 100 
         : 0;
 
-      // Get cash balance from one month ago for MoM change
-      // This is approximate - we'd need historical snapshots for exact values
-      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-      const cashOneMonthAgo = totalCash; // TODO: Implement historical balance tracking
-      const cashChange = 0; // TODO: Calculate when we have historical data
-
-      // Investment MoM change - get from investment snapshots
-      const investmentSnapshots = await prisma.investmentSnapshot.findMany({
+      // Calculate cash MoM change
+      // Get transactions from last month to calculate the change in cash balance
+      const lastMonthTransactions = await prisma.transaction.findMany({
         where: {
-          portfolio: { userId: context.user.id },
-          date: { gte: lastMonthStart }
-        },
-        orderBy: { date: 'desc' }
+          date: { 
+            gte: lastMonthStart,
+            lte: lastMonthEnd
+          },
+          account: { 
+            userId: context.user.id,
+            type: { in: [AccountType.CHECKING, AccountType.CREDIT_CARD] }
+          }
+        }
       });
 
-      const investmentChange = 0; // TODO: Calculate from snapshots
+      const cashFlowLastMonth = lastMonthTransactions.reduce((sum, t) => {
+        return sum + (t.amount || 0);
+      }, 0);
 
-      const netWorthChange = 0; // TODO: Calculate when we have historical data
+      const previousCashBalance = totalCash - cashFlowLastMonth;
+      const cashChange = previousCashBalance !== 0 
+        ? ((totalCash - previousCashBalance) / Math.abs(previousCashBalance)) * 100 
+        : 0;
+
+      // Calculate savings MoM change
+      const lastMonthSavingsTransactions = await prisma.transaction.findMany({
+        where: {
+          date: { 
+            gte: lastMonthStart,
+            lte: lastMonthEnd
+          },
+          account: { 
+            userId: context.user.id,
+            type: AccountType.SAVINGS
+          }
+        }
+      });
+
+      const savingsFlowLastMonth = lastMonthSavingsTransactions.reduce((sum, t) => {
+        return sum + (t.amount || 0);
+      }, 0);
+
+      const previousSavingsBalance = totalSavings - savingsFlowLastMonth;
+      const savingsChange = previousSavingsBalance !== 0 
+        ? ((totalSavings - previousSavingsBalance) / Math.abs(previousSavingsBalance)) * 100 
+        : 0;
+
+      // Investment MoM change - calculate from snapshots
+      const oneMonthAgoDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      
+      // Get the most recent snapshot before one month ago for each portfolio
+      const portfolioSnapshots = await Promise.all(
+        investmentPortfolios.map(async (portfolio) => {
+          const snapshot = await prisma.investmentSnapshot.findFirst({
+            where: {
+              portfolioId: portfolio.id,
+              date: { lte: oneMonthAgoDate }
+            },
+            orderBy: { date: 'desc' }
+          });
+          return snapshot?.value || portfolio.currentValue; // Fallback to current if no snapshot
+        })
+      );
+
+      const investmentsOneMonthAgo = portfolioSnapshots.reduce((sum, value) => sum + value, 0);
+      const investmentChange = investmentsOneMonthAgo > 0 
+        ? ((investments - investmentsOneMonthAgo) / investmentsOneMonthAgo) * 100 
+        : 0;
+
+      // Calculate net worth change
+      const previousNetWorth = previousCashBalance + previousSavingsBalance + investmentsOneMonthAgo;
+      const netWorthChange = previousNetWorth > 0 
+        ? ((netWorth - previousNetWorth) / previousNetWorth) * 100 
+        : 0;
 
       // Calculate average spending (last 12 months)
       const oneYearAgo = new Date();
@@ -250,15 +334,18 @@ export const resolvers = {
 
       return {
         totalCash,
+        totalSavings,
         personalCash,
         businessCash,
         investments,
         netWorth,
+        lastMonthChange,
         lastMonthIncome: lastMonthIncomeTotal,
         lastMonthExpenses: lastMonthExpensesTotal,
         incomeChange,
         expensesChange,
         cashChange,
+        savingsChange,
         investmentChange,
         netWorthChange,
         avgMonthlySpend,
@@ -379,6 +466,168 @@ export const resolvers = {
           }
         }
       });
+    },
+
+    budgetPeriods: async (
+      _parent: unknown,
+      { pinned }: { pinned?: boolean },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      const periods = await prisma.budgetPeriod.findMany({
+        where: {
+          userId: context.user.id,
+          ...(pinned !== undefined && { isPinned: pinned })
+        },
+        include: {
+          lineItems: {
+            include: { category: true }
+          }
+        },
+        orderBy: [
+          { isPinned: 'desc' },
+          { startDate: 'desc' }
+        ]
+      });
+
+      // Enrich with calculated fields
+      return periods.map(period => ({
+        ...period,
+        startDate: period.startDate.toISOString(),
+        endDate: period.endDate.toISOString(),
+        createdAt: period.createdAt.toISOString()
+      }));
+    },
+
+    budgetPeriod: async (
+      _parent: unknown,
+      { id }: { id: string },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      const period = await prisma.budgetPeriod.findFirst({
+        where: {
+          id,
+          userId: context.user.id
+        },
+        include: {
+          lineItems: {
+            include: { category: true }
+          }
+        }
+      });
+
+      if (!period) {
+        throw new Error('Budget period not found');
+      }
+
+      return {
+        ...period,
+        startDate: period.startDate.toISOString(),
+        endDate: period.endDate.toISOString(),
+        createdAt: period.createdAt.toISOString()
+      };
+    },
+
+    suggestBudgetAmounts: async (
+      _parent: unknown,
+      { startDate, endDate }: { startDate: string; endDate: string },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      const targetStart = new Date(startDate);
+      const targetEnd = new Date(endDate);
+      const daysDiff = Math.ceil(
+        (targetEnd.getTime() - targetStart.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      // Find similar-length periods (±3 days tolerance)
+      const historicalPeriods = await prisma.budgetPeriod.findMany({
+        where: {
+          userId: context.user.id,
+          // Find periods with similar length
+        },
+        include: {
+          lineItems: {
+            include: { category: true }
+          }
+        },
+        orderBy: { startDate: 'desc' },
+        take: 3
+      });
+
+      if (historicalPeriods.length < 2) {
+        const allPeriods = await prisma.budgetPeriod.findMany({
+          where: { userId: context.user.id },
+          include: {
+            lineItems: {
+              include: { category: true }
+            }
+          },
+          orderBy: { startDate: 'desc' },
+          take: 2
+        });
+
+        if (allPeriods.length >= 2) {
+          // Use the 2nd most recent (skips the immediately previous one)
+          const twoPrior = allPeriods[1];
+          return twoPrior.lineItems.map(item => ({
+            categoryId: item.categoryId,
+            categoryName: item.category?.name || 'Uncategorized',
+            suggestedAmount: item.budgetAmount,
+            basedOnPeriods: [
+              `${twoPrior.startDate.toLocaleDateString()} - ${twoPrior.endDate.toLocaleDateString()}`
+            ]
+          }));
+        }
+
+        return [];
+      }
+
+      // Average amounts from similar periods
+      const categoryAverages: Record<string, {
+        total: number;
+        count: number;
+        name: string;
+        periods: string[];
+      }> = {};
+
+      historicalPeriods.forEach(period => {
+        const periodLabel = `${period.startDate.toLocaleDateString()} - ${period.endDate.toLocaleDateString()}`;
+        
+        period.lineItems.forEach(item => {
+          const key = item.categoryId || 'uncategorized';
+          if (!categoryAverages[key]) {
+            categoryAverages[key] = {
+              total: 0,
+              count: 0,
+              name: item.category?.name || 'Uncategorized',
+              periods: []
+            };
+          }
+          categoryAverages[key].total += item.budgetAmount;
+          categoryAverages[key].count += 1;
+          if (!categoryAverages[key].periods.includes(periodLabel)) {
+            categoryAverages[key].periods.push(periodLabel);
+          }
+        });
+      });
+
+      return Object.entries(categoryAverages).map(([categoryId, data]) => ({
+        categoryId: categoryId === 'uncategorized' ? null : categoryId,
+        categoryName: data.name,
+        suggestedAmount: Math.round((data.total / data.count) * 100) / 100,
+        basedOnPeriods: data.periods
+      }));
     },
   },
 
@@ -568,23 +817,79 @@ export const resolvers = {
       return transaction;
     },
 
-    // Create category
-    createCategory: async (_parent: unknown, { input }: { input: CategoryInput }) => {
-      return prisma.category.create({
-        data: {
+    createCategory: async (
+      _parent: unknown,
+      { input }: { input: { name: string; type: string; icon?: string; color?: string; parentId?: string } },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      console.log('Creating category with userId:', context.user.id);
+      console.log('Input:', input);
+
+      // Check if category with this name already exists for this user
+      const existingCategory = await prisma.category.findFirst({
+        where: {
           name: input.name,
-          type: input.type,
-          icon: input.icon,
-          color: input.color,
-          parent: input.parentId ? {
-            connect: { id: input.parentId }
-          } : undefined
-        },
-        include: {
-          parent: true,
-          subcategories: true
+          userId: context.user.id,
         }
       });
+
+      if (existingCategory) {
+        throw new Error('You already have a category with this name');
+      }
+
+      const newCategory = await prisma.category.create({
+        data: {
+          name: input.name,
+          type: input.type as TransactionType,
+          icon: input.icon,
+          color: input.color,
+          parentId: input.parentId,
+          userId: context.user.id,
+        },
+      });
+
+      console.log('Created category:', newCategory);
+      
+      return newCategory;
+    },
+
+    updateCategory: async (
+      _parent: unknown,
+      { id, input }: { id: string; input: { name?: string; icon?: string; color?: string } },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      return await prisma.category.update({
+        where: { id },
+        data: {
+          ...(input.name && { name: input.name }),
+          ...(input.icon !== undefined && { icon: input.icon }),
+          ...(input.color && { color: input.color }),
+        },
+      });
+    },
+
+    deleteCategory: async (
+      _parent: unknown,
+      { id }: { id: string },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      await prisma.category.delete({
+        where: { id },
+      });
+
+      return true;
     },
 
     // Record paycheck
@@ -1046,6 +1351,262 @@ export const resolvers = {
       }
 
       await prisma.investmentPortfolio.delete({ where: { id } });
+      return true;
+    },
+
+    checkBudgetOverlap: async (
+      _parent: unknown,
+      { startDate, endDate }: { startDate: string; endDate: string },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      const overlapping = await prisma.budgetPeriod.findMany({
+        where: {
+          userId: context.user.id,
+          AND: [
+            { startDate: { lte: end } },
+            { endDate: { gte: start } }
+          ]
+        },
+        include: {
+          lineItems: {
+            include: { category: true }
+          }
+        }
+      });
+
+      return {
+        hasOverlap: overlapping.length > 0,
+        overlappingPeriods: overlapping.map(p => ({
+          ...p,
+          startDate: p.startDate.toISOString(),
+          endDate: p.endDate.toISOString(),
+          createdAt: p.createdAt.toISOString()
+        }))
+      };
+    },
+
+    createBudgetPeriod: async (
+      _parent: unknown,
+      { input }: { input: { startDate: string; endDate: string; copyFromPeriodId?: string } },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      const period = await prisma.budgetPeriod.create({
+        data: {
+          userId: context.user.id,
+          startDate: new Date(input.startDate),
+          endDate: new Date(input.endDate)
+        },
+        include: {
+          lineItems: {
+            include: { category: true }
+          }
+        }
+      });
+
+      if (input.copyFromPeriodId) {
+        const sourcePeriod = await prisma.budgetPeriod.findFirst({
+          where: {
+            id: input.copyFromPeriodId,
+            userId: context.user.id
+          },
+          include: {
+            lineItems: true
+          }
+        });
+
+        if (sourcePeriod) {
+          await Promise.all(
+            sourcePeriod.lineItems.map(item =>
+              prisma.budgetLineItem.create({
+                data: {
+                  budgetPeriodId: period.id,
+                  categoryId: item.categoryId,
+                  description: item.description,
+                  budgetAmount: item.budgetAmount,
+                  // Don't copy actuals or overrides - start fresh
+                }
+              })
+            )
+          );
+        }
+      }
+
+      // Refetch to get the copied line items
+      const updatedPeriod = await prisma.budgetPeriod.findUnique({
+        where: { id: period.id },
+        include: {
+          lineItems: {
+            include: { category: true }
+          }
+        }
+      });
+
+      return {
+        ...updatedPeriod!,
+        startDate: updatedPeriod!.startDate.toISOString(),
+        endDate: updatedPeriod!.endDate.toISOString(),
+        createdAt: updatedPeriod!.createdAt.toISOString()
+      };
+    },
+
+    togglePinBudgetPeriod: async (
+      _parent: unknown,
+      { id }: { id: string },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      const period = await prisma.budgetPeriod.findFirst({
+        where: { id, userId: context.user.id }
+      });
+
+      if (!period) {
+        throw new Error('Budget period not found');
+      }
+
+      const updated = await prisma.budgetPeriod.update({
+        where: { id },
+        data: { isPinned: !period.isPinned },
+        include: {
+          lineItems: {
+            include: { category: true }
+          }
+        }
+      });
+
+      return {
+        ...updated,
+        startDate: updated.startDate.toISOString(),
+        endDate: updated.endDate.toISOString(),
+        createdAt: updated.createdAt.toISOString()
+      };
+    },
+
+    createBudgetLineItem: async (
+      _parent: unknown,
+      { budgetPeriodId, input }: {
+        budgetPeriodId: string;
+        input: {
+          categoryId?: string;
+          description: string;
+          budgetAmount: number;
+          manualOverride?: number;
+        }
+      },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      // Verify the budget period belongs to the user
+      const period = await prisma.budgetPeriod.findFirst({
+        where: {
+          id: budgetPeriodId,
+          userId: context.user.id
+        }
+      });
+
+      if (!period) {
+        throw new Error('Budget period not found');
+      }
+
+      const lineItem = await prisma.budgetLineItem.create({
+        data: {
+          budgetPeriodId,
+          categoryId: input.categoryId || null,
+          description: input.description,
+          budgetAmount: input.budgetAmount,
+          manualOverride: input.manualOverride
+        },
+        include: {
+          category: true
+        }
+      });
+
+      return lineItem;
+    },
+
+    updateBudgetLineItem: async (
+      _parent: unknown,
+      { id, input }: {
+        id: string;
+        input: {
+          description?: string;
+          budgetAmount?: number;
+          manualOverride?: number;
+        }
+      },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      // Verify ownership through budget period
+      const lineItem = await prisma.budgetLineItem.findUnique({
+        where: { id },
+        include: {
+          budgetPeriod: true
+        }
+      });
+
+      if (!lineItem || lineItem.budgetPeriod.userId !== context.user.id) {
+        throw new Error('Budget line item not found');
+      }
+
+      const updated = await prisma.budgetLineItem.update({
+        where: { id },
+        data: {
+          ...(input.description !== undefined && { description: input.description }),
+          ...(input.budgetAmount !== undefined && { budgetAmount: input.budgetAmount }),
+          ...(input.manualOverride !== undefined && { manualOverride: input.manualOverride })
+        },
+        include: {
+          category: true
+        }
+      });
+
+      return updated;
+    },
+
+    deleteBudgetLineItem: async (
+      _parent: unknown,
+      { id }: { id: string },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      const lineItem = await prisma.budgetLineItem.findUnique({
+        where: { id },
+        include: {
+          budgetPeriod: true
+        }
+      });
+
+      if (!lineItem || lineItem.budgetPeriod.userId !== context.user.id) {
+        throw new Error('Budget line item not found');
+      }
+
+      await prisma.budgetLineItem.delete({
+        where: { id }
+      });
+
       return true;
     },
   }
