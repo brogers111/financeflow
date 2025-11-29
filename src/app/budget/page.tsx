@@ -31,15 +31,6 @@ export default function BudgetPage() {
 
   return (
     <div className="flex h-screen bg-[#282427]">
-      {/* Sidebar */}
-      <BudgetSidebar
-        budgets={budgets}
-        selectedBudgetId={selectedBudgetId}
-        onSelectBudget={setSelectedBudgetId}
-        onCreateNew={() => setShowCreateModal(true)}
-        onRefresh={refetch}
-      />
-
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
         {selectedBudget ? (
@@ -58,6 +49,15 @@ export default function BudgetPage() {
           </div>
         )}
       </div>
+
+      {/* Sidebar */}
+      <BudgetSidebar
+        budgets={budgets}
+        selectedBudgetId={selectedBudgetId}
+        onSelectBudget={setSelectedBudgetId}
+        onCreateNew={() => setShowCreateModal(true)}
+        onRefresh={refetch}
+      />
 
       {/* Create Modal */}
       {showCreateModal && (

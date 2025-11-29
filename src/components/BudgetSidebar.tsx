@@ -35,7 +35,7 @@ export default function BudgetSidebar({
   const unpinnedBudgets = budgets.filter(b => !b.isPinned);
 
   const handleTogglePin = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Don't trigger budget selection
+    e.stopPropagation();
     await togglePin({ variables: { id } });
     onRefresh();
   };

@@ -23,6 +23,13 @@ type Transaction = {
   confidence?: number;
 };
 
+const formatDateLocal = (dateString: string) => {
+  const date = new Date(dateString);
+  // Adjust for timezone offset to get the correct local date
+  date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
+  return date;
+};
+
 export default function TransactionsPage() {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
@@ -44,7 +51,7 @@ export default function TransactionsPage() {
 
   // Filter transactions by selected month/year
   const filteredTransactions = transactions.filter(t => {
-    const date = new Date(Number(t.date));
+    const date = formatDateLocal(t.date);
     return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
   });
 
@@ -208,7 +215,7 @@ export default function TransactionsPage() {
                     </td>
 
                     <td className="px-6 py-6 whitespace-nowrap text-sm text-[#282427]">
-                      {new Date(Number(transaction.date)).toLocaleDateString('en-US', {
+                      {formatDateLocal(transaction.date).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric'
                       })}

@@ -553,8 +553,13 @@ export const resolvers = {
         throw new Error('Not authenticated');
       }
 
-      const targetStart = new Date(startDate);
-      const targetEnd = new Date(endDate);
+      const parseLocalDate = (dateStr: string) => {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      };
+
+      const targetStart = parseLocalDate(startDate);
+      const targetEnd = parseLocalDate(endDate);
       const daysDiff = Math.ceil(
         (targetEnd.getTime() - targetStart.getTime()) / (1000 * 60 * 60 * 24)
       );
@@ -648,8 +653,13 @@ export const resolvers = {
         throw new Error('Not authenticated');
       }
 
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      const parseLocalDate = (dateStr: string) => {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      };
+
+      const start = parseLocalDate(startDate);
+      const end = parseLocalDate(endDate);
 
       const overlapping = await prisma.budgetPeriod.findMany({
         where: {
@@ -762,10 +772,15 @@ export const resolvers = {
         throw new Error('Account not found or access denied');
       }
 
+      const parseLocalDate = (dateStr: string) => {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      };
+
       const transaction = await prisma.transaction.create({
         data: {
           accountId: input.accountId,
-          date: new Date(input.date),
+          date: parseLocalDate(input.date),
           description: input.description,
           amount: input.amount,
           type: input.type,
@@ -1410,11 +1425,16 @@ export const resolvers = {
         throw new Error('Not authenticated');
       }
 
+      const parseLocalDate = (dateStr: string) => {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      }
+
       const period = await prisma.budgetPeriod.create({
         data: {
           userId: context.user.id,
-          startDate: new Date(input.startDate),
-          endDate: new Date(input.endDate)
+          startDate: parseLocalDate(input.startDate),
+          endDate: parseLocalDate(input.endDate)
         },
         include: {
           lineItems: {
@@ -1467,6 +1487,75 @@ export const resolvers = {
         endDate: updatedPeriod!.endDate.toISOString(),
         createdAt: updatedPeriod!.createdAt.toISOString()
       };
+    },
+
+    updateBudgetPeriod: async (
+      _parent: unknown,
+      { id, input }: { 
+        id: string; 
+        input: { startDate?: string; endDate?: string; isPinned?: boolean } 
+      },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      const period = await prisma.budgetPeriod.findFirst({
+        where: { id, userId: context.user.id }
+      });
+
+      if (!period) {
+        throw new Error('Budget period not found');
+      }
+
+      const parseLocalDate = (dateStr: string) => {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      };
+
+      const data: any = {};
+      if (input.startDate !== undefined) data.startDate = parseLocalDate(input.startDate);
+      if (input.endDate !== undefined) data.endDate = parseLocalDate(input.endDate);
+      if (input.isPinned !== undefined) data.isPinned = input.isPinned;
+
+      const updated = await prisma.budgetPeriod.update({
+        where: { id },
+        data,
+        include: {
+          lineItems: {
+            include: { category: true }
+          }
+        }
+      });
+
+      return {
+        ...updated,
+        startDate: updated.startDate.toISOString(),
+        endDate: updated.endDate.toISOString(),
+        createdAt: updated.createdAt.toISOString()
+      };
+    },
+
+    deleteBudgetPeriod: async (
+      _parent: unknown,
+      { id }: { id: string },
+      context: any
+    ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      const period = await prisma.budgetPeriod.findFirst({
+        where: { id, userId: context.user.id }
+      });
+
+      if (!period) {
+        throw new Error('Budget period not found');
+      }
+
+      await prisma.budgetPeriod.delete({ where: { id } });
+      return true;
     },
 
     togglePinBudgetPeriod: async (

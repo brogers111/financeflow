@@ -5,6 +5,7 @@ import { useQuery, useLazyQuery, useMutation } from '@apollo/client';
 import { 
   CHECK_BUDGET_OVERLAP, 
   CREATE_BUDGET_PERIOD, 
+  CREATE_BUDGET_LINE_ITEM,
   SUGGEST_BUDGET_AMOUNTS,
   GET_BUDGET_PERIODS 
 } from '@/lib/graphql/budget-queries';
@@ -30,6 +31,7 @@ export default function CreateBudgetModal({ onClose, onCreated }: Props) {
   const { data: budgetsData } = useQuery(GET_BUDGET_PERIODS);
   
   const [createBudget, { loading }] = useMutation(CREATE_BUDGET_PERIOD);
+  const [createLineItem] = useMutation(CREATE_BUDGET_LINE_ITEM);
 
   const categories = categoriesData?.categories || [];
   const existingBudgets = budgetsData?.budgetPeriods || [];
@@ -105,33 +107,44 @@ export default function CreateBudgetModal({ onClose, onCreated }: Props) {
     }
   };
 
-  const handleCreateWithSuggestions = async () => {
+    const handleCreateWithSuggestions = async () => {
     try {
-      // Create the budget period first
-      const { data } = await createBudget({
+        // Create the budget period first
+        const { data } = await createBudget({
         variables: {
-          input: {
+            input: {
             startDate,
             endDate
-          }
+            }
         }
-      });
+        });
 
-      const budgetId = data.createBudgetPeriod.id;
+        const budgetId = data.createBudgetPeriod.id;
 
-      // Add selected suggestions as line items
-      const selectedSuggestionsList = suggestions.filter(s => 
+        // Get selected suggestions
+        const selectedSuggestionsList = suggestions.filter(s => 
         selectedSuggestions.has(s.categoryId || 'uncategorized')
-      );
+        );
+        
+        for (const suggestion of selectedSuggestionsList) {
+        await createLineItem({
+            variables: {
+            budgetPeriodId: budgetId,
+            input: {
+                categoryId: suggestion.categoryId || null,
+                description: suggestion.categoryName,
+                budgetAmount: suggestion.suggestedAmount
+            }
+            }
+        });
+        }
 
-      // We'll add line items in the BudgetView component after creation
-      // For now, just navigate to the new budget
-      onCreated(budgetId);
+        onCreated(budgetId);
     } catch (error) {
-      console.error('Error creating budget:', error);
-      alert('Failed to create budget');
+        console.error('Error creating budget:', error);
+        alert('Failed to create budget');
     }
-  };
+    };
 
   const toggleSuggestion = (categoryId: string | null) => {
     const key = categoryId || 'uncategorized';

@@ -8,7 +8,6 @@ import {
   DELETE_BUDGET_LINE_ITEM
 } from '@/lib/graphql/budget-queries';
 import { GET_CATEGORIES } from '@/lib/graphql/queries';
-
 import {
   BarChart,
   Bar,
@@ -21,6 +20,7 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import Image from 'next/image';
 
 // Interfaces
 interface BudgetLineItem {
@@ -64,6 +64,7 @@ const COLORS = [
 // Main Component
 export default function BudgetView({ budget, onRefresh }: Props) {
   const [showAddLineItem, setShowAddLineItem] = useState(false);
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
 
   const { data: categoriesData } = useQuery(GET_CATEGORIES);
   const categories = categoriesData?.categories || [];
@@ -83,40 +84,132 @@ export default function BudgetView({ budget, onRefresh }: Props) {
     })}`;
   }, [budget]);
 
-  // GRAPH DATA
+  // ========================================
+  // CONSOLIDATED GRAPH DATA BY CATEGORY
+  // ========================================
   const budgetVsActualData = useMemo(() => {
-    return budget.lineItems.map(item => ({
-      category: item.category?.name || 'Uncategorized',
-      budgeted: item.budgetAmount,
-      actual: item.displayAmount,
-      color: item.category?.color || '#666'
-    }));
+    const categoryTotals: Record<string, {
+      category: string;
+      budgeted: number;
+      actual: number;
+      color: string;
+    }> = {};
+
+    budget.lineItems.forEach(item => {
+      const key = item.category?.id || 'uncategorized';
+      const categoryName = item.category?.name || 'Uncategorized';
+      
+      if (!categoryTotals[key]) {
+        categoryTotals[key] = {
+          category: categoryName,
+          budgeted: 0,
+          actual: 0,
+          color: item.category?.color || '#666'
+        };
+      }
+      
+      categoryTotals[key].budgeted += item.budgetAmount;
+      categoryTotals[key].actual += item.displayAmount;
+    });
+
+    return Object.values(categoryTotals);
   }, [budget.lineItems]);
 
   const overUnderData = useMemo(() => {
-    return budget.lineItems
-      .map(item => ({
-        category: item.category?.name || 'Uncategorized',
-        balance: item.balance,
-        color: item.category?.color || '#666'
-      }))
-      .sort((a, b) => a.balance - b.balance);
+    const categoryTotals: Record<string, {
+      category: string;
+      balance: number;
+      color: string;
+    }> = {};
+
+    budget.lineItems.forEach(item => {
+      const key = item.category?.id || 'uncategorized';
+      const categoryName = item.category?.name || 'Uncategorized';
+      
+      if (!categoryTotals[key]) {
+        categoryTotals[key] = {
+          category: categoryName,
+          balance: 0,
+          color: item.category?.color || '#666'
+        };
+      }
+      
+      categoryTotals[key].balance += item.balance;
+    });
+
+    return Object.values(categoryTotals).sort((a, b) => a.balance - b.balance);
   }, [budget.lineItems]);
 
+  // ========================================
+  // PIE CHART - Individual items, grouped by category
+  // ========================================
   const spendDistributionData = useMemo(() => {
-    return budget.lineItems
+    // Group by category first
+    const grouped: Record<string, BudgetLineItem[]> = {};
+    
+    budget.lineItems
       .filter(item => item.displayAmount > 0)
-      .map(item => ({
-        name: item.category?.name || 'Uncategorized',
-        value: item.displayAmount,
-        color: item.category?.color || '#666'
-      }))
-      .sort((a, b) => b.value - a.value);
+      .forEach(item => {
+        const key = item.category?.id || 'uncategorized';
+        if (!grouped[key]) {
+          grouped[key] = [];
+        }
+        grouped[key].push(item);
+      });
+
+    // Flatten back out, maintaining category grouping
+    const result: any[] = [];
+    Object.entries(grouped).forEach(([categoryId, items]) => {
+      items
+        .sort((a, b) => b.displayAmount - a.displayAmount)
+        .forEach(item => {
+          result.push({
+            name: item.description,
+            value: item.displayAmount,
+            color: item.category?.color || '#666',
+            categoryId: item.category?.id || 'uncategorized'
+          });
+        });
+    });
+
+    return result;
   }, [budget.lineItems]);
 
   const totalSpent = spendDistributionData.reduce((sum, item) => sum + item.value, 0);
 
-  // TOOLTIP COMPONENTS
+  // ========================================
+  // GROUP LINE ITEMS BY CATEGORY FOR TABLES
+  // ========================================
+  const lineItemsByCategory = useMemo(() => {
+    const grouped: Record<string, {
+      category: { id: string; name: string; icon: string; color: string } | null;
+      items: BudgetLineItem[];
+    }> = {};
+
+    budget.lineItems.forEach(item => {
+      const key = item.category?.id || 'uncategorized';
+      
+      if (!grouped[key]) {
+        grouped[key] = {
+          category: item.category,
+          items: []
+        };
+      }
+      
+      grouped[key].items.push(item);
+    });
+
+    return Object.values(grouped);
+  }, [budget.lineItems]);
+
+  // Split into two columns for side-by-side display
+  const midpoint = Math.ceil(lineItemsByCategory.length / 2);
+  const leftColumnCategories = lineItemsByCategory.slice(0, midpoint);
+  const rightColumnCategories = lineItemsByCategory.slice(midpoint);
+
+  // ========================================
+  // TOOLTIPS
+  // ========================================
   const BudgetVsActualTooltip = ({ active, payload }: any) => {
     if (!active || !payload || !payload[0]) return null;
     const data = payload[0].payload;
@@ -167,7 +260,9 @@ export default function BudgetView({ budget, onRefresh }: Props) {
     );
   };
 
+  // ========================================
   // MUTATION HANDLERS
+  // ========================================
   const handleAddLineItem = async (categoryId: string, description: string, budgetAmount: number) => {
     await createLineItem({
       variables: {
@@ -202,10 +297,11 @@ export default function BudgetView({ budget, onRefresh }: Props) {
     onRefresh();
   };
 
+  // ========================================
   // MAIN RENDER
+  // ========================================
   return (
     <div className="p-6">
-
       {/* HEADER */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-[#EEEBD9] mb-2">Budget</h1>
@@ -225,7 +321,7 @@ export default function BudgetView({ budget, onRefresh }: Props) {
         </div>
 
         <div className="bg-[#EEEBD9] p-4 rounded-lg">
-          <p className={`text-xs text-gray-500 mb-1`}>Balance</p>
+          <p className="text-xs text-gray-500 mb-1">Balance</p>
           <p className={`text-2xl font-bold ${budget.totalBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             {budget.totalBalance >= 0 ? '+' : ''}${budget.totalBalance.toLocaleString()}
           </p>
@@ -234,7 +330,6 @@ export default function BudgetView({ budget, onRefresh }: Props) {
 
       {/* GRAPHS */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-
         {/* Graph 1 — Budget vs Actual */}
         <div className="bg-[#EEEBD9] rounded-lg p-4">
           <h3 className="text-md font-semibold mb-3">Budget vs Actual</h3>
@@ -325,49 +420,47 @@ export default function BudgetView({ budget, onRefresh }: Props) {
         </div>
       </div>
 
-      {/* LINE ITEMS TABLE */}
-      <div className="bg-[#EEEBD9] rounded-lg p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Line Items</h3>
+      {/* ADD LINE ITEM BUTTON */}
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => setShowAddLineItem(true)}
+          className="bg-[#282427] text-[#EEEBD9] px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer hover:bg-[#3a3537]"
+        >
+          + Add Line Item
+        </button>
+      </div>
 
-          <button
-            onClick={() => setShowAddLineItem(true)}
-            className="bg-[#282427] text-[#EEEBD9] px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer hover:bg-[#3a3537]"
-          >
-            + Add Line Item
-          </button>
+      {/* LINE ITEMS TABLES - TWO COLUMNS */}
+      <div className="grid grid-cols-2 gap-6">
+        {/* LEFT COLUMN */}
+        <div className="space-y-6">
+          {leftColumnCategories.map(({ category, items }) => (
+            <CategoryTable
+              key={category?.id || 'uncategorized'}
+              category={category}
+              items={items}
+              hoveredRow={hoveredRow}
+              setHoveredRow={setHoveredRow}
+              onUpdate={handleUpdateLineItem}
+              onDelete={handleDeleteLineItem}
+            />
+          ))}
         </div>
 
-        <table className="w-full">
-          <thead>
-            <tr className="border-b-2 border-[#282427]">
-              <th className="text-left py-2 text-sm font-semibold">Category</th>
-              <th className="text-left py-2 text-sm font-semibold">Description</th>
-              <th className="text-right py-2 text-sm font-semibold">Budget</th>
-              <th className="text-right py-2 text-sm font-semibold">Actual</th>
-              <th className="text-right py-2 text-sm font-semibold">Balance</th>
-              <th className="text-center py-2 text-sm font-semibold w-16">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {budget.lineItems.map(item => (
-              <LineItemRow
-                key={item.id}
-                item={item}
-                categories={categories}
-                onUpdate={(field, value) => handleUpdateLineItem(item.id, field, value)}
-                onDelete={() => handleDeleteLineItem(item.id)}
-              />
-            ))}
-          </tbody>
-        </table>
-
-        {budget.lineItems.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No line items yet. Click “Add Line Item” to get started.
-          </div>
-        )}
+        {/* RIGHT COLUMN */}
+        <div className="space-y-6">
+          {rightColumnCategories.map(({ category, items }) => (
+            <CategoryTable
+              key={category?.id || 'uncategorized'}
+              category={category}
+              items={items}
+              hoveredRow={hoveredRow}
+              setHoveredRow={setHoveredRow}
+              onUpdate={handleUpdateLineItem}
+              onDelete={handleDeleteLineItem}
+            />
+          ))}
+        </div>
       </div>
 
       {showAddLineItem && (
@@ -381,13 +474,89 @@ export default function BudgetView({ budget, onRefresh }: Props) {
   );
 }
 
-// LINE ITEM ROW
-function LineItemRow({ item, categories, onUpdate, onDelete }: any) {
+// ========================================
+// CATEGORY TABLE COMPONENT
+// ========================================
+interface CategoryTableProps {
+  category: { id: string; name: string; icon: string; color: string } | null;
+  items: BudgetLineItem[];
+  hoveredRow: string | null;
+  setHoveredRow: (id: string | null) => void;
+  onUpdate: (id: string, field: string, value: any) => void;
+  onDelete: (id: string) => void;
+}
+
+function CategoryTable({
+  category,
+  items,
+  hoveredRow,
+  setHoveredRow,
+  onUpdate,
+  onDelete
+}: CategoryTableProps) {
+  return (
+    <div className="bg-[#EEEBD9] rounded-lg p-4">
+      {/* Category Header */}
+      <h3 className="text-md font-semibold mb-3 flex items-center gap-2">
+        {category?.icon && <span>{category.icon}</span>}
+        <span>{category?.name || 'Uncategorized'}</span>
+      </h3>
+
+      {/* Table */}
+      <table className="w-full">
+        <thead>
+          <tr className="border-b-2 border-[#282427]">
+            <th className="text-left py-2 text-xs font-semibold">Description</th>
+            <th className="text-right py-2 text-xs font-semibold w-20">Budget</th>
+            <th className="text-right py-2 text-xs font-semibold w-20">Actual</th>
+            <th className="text-right py-2 text-xs font-semibold w-20">Balance</th>
+            <th className="w-8"></th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {items.map(item => (
+            <LineItemRow
+              key={item.id}
+              item={item}
+              isHovered={hoveredRow === item.id}
+              onMouseEnter={() => setHoveredRow(item.id)}
+              onMouseLeave={() => setHoveredRow(null)}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ========================================
+// LINE ITEM ROW COMPONENT
+// ========================================
+interface LineItemRowProps {
+  item: BudgetLineItem;
+  isHovered: boolean;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  onUpdate: (id: string, field: string, value: any) => void;
+  onDelete: (id: string) => void;
+}
+
+function LineItemRow({
+  item,
+  isHovered,
+  onMouseEnter,
+  onMouseLeave,
+  onUpdate,
+  onDelete
+}: LineItemRowProps) {
   const [editMode, setEditMode] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<any>(null);
 
   const handleSave = (field: string) => {
-    onUpdate(field, tempValue);
+    onUpdate(item.id, field, tempValue);
     setEditMode(null);
     setTempValue(null);
   };
@@ -398,22 +567,13 @@ function LineItemRow({ item, categories, onUpdate, onDelete }: any) {
   };
 
   return (
-    <tr className="border-b border-gray-300 hover:bg-[#d7d5c5]">
-
-      {/* CATEGORY */}
-      <td className="py-3">
-        {item.category ? (
-          <span className="flex items-center gap-2">
-            <span>{item.category.icon}</span>
-            <span>{item.category.name}</span>
-          </span>
-        ) : (
-          <span className="text-gray-500">Uncategorized</span>
-        )}
-      </td>
-
+    <tr
+      className="border-b border-gray-300 hover:bg-[#d7d5c5]"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       {/* DESCRIPTION */}
-      <td className="py-3">
+      <td className="py-2">
         {editMode === 'description' ? (
           <input
             type="text"
@@ -424,7 +584,7 @@ function LineItemRow({ item, categories, onUpdate, onDelete }: any) {
               if (e.key === 'Enter') handleSave('description');
               if (e.key === 'Escape') handleCancel();
             }}
-            className="w-full p-1 border border-[#282427] rounded"
+            className="w-full p-1 border border-[#282427] rounded text-xs"
             autoFocus
           />
         ) : (
@@ -433,7 +593,7 @@ function LineItemRow({ item, categories, onUpdate, onDelete }: any) {
               setEditMode('description');
               setTempValue(item.description);
             }}
-            className="cursor-pointer hover:underline"
+            className="cursor-pointer hover:underline text-xs"
           >
             {item.description}
           </span>
@@ -441,7 +601,7 @@ function LineItemRow({ item, categories, onUpdate, onDelete }: any) {
       </td>
 
       {/* BUDGET AMOUNT */}
-      <td className="py-3 text-right">
+      <td className="py-2 text-right">
         {editMode === 'budgetAmount' ? (
           <input
             type="number"
@@ -453,7 +613,7 @@ function LineItemRow({ item, categories, onUpdate, onDelete }: any) {
               if (e.key === 'Enter') handleSave('budgetAmount');
               if (e.key === 'Escape') handleCancel();
             }}
-            className="w-24 p-1 border border-[#282427] rounded text-right ml-auto"
+            className="w-full p-1 border border-[#282427] rounded text-right text-xs"
             autoFocus
           />
         ) : (
@@ -462,15 +622,15 @@ function LineItemRow({ item, categories, onUpdate, onDelete }: any) {
               setEditMode('budgetAmount');
               setTempValue(item.budgetAmount);
             }}
-            className="cursor-pointer hover:underline"
+            className="cursor-pointer hover:underline text-xs"
           >
             ${item.budgetAmount.toLocaleString()}
           </span>
         )}
       </td>
 
-      {/* ACTUAL AMOUNT / MANUAL OVERRIDE */}
-      <td className="py-3 text-right">
+      {/* ACTUAL AMOUNT */}
+      <td className="py-2 text-right">
         {editMode === 'manualOverride' ? (
           <input
             type="number"
@@ -482,7 +642,7 @@ function LineItemRow({ item, categories, onUpdate, onDelete }: any) {
               if (e.key === 'Enter') handleSave('manualOverride');
               if (e.key === 'Escape') handleCancel();
             }}
-            className={`w-24 p-1 rounded text-right ml-auto ${
+            className={`w-full p-1 rounded text-right text-xs ${
               item.isManuallyOverridden
                 ? 'border-2 border-orange-500 bg-orange-50'
                 : 'border border-[#282427]'
@@ -495,7 +655,7 @@ function LineItemRow({ item, categories, onUpdate, onDelete }: any) {
               setEditMode('manualOverride');
               setTempValue(item.manualOverride ?? item.actualAmount);
             }}
-            className={`cursor-pointer hover:underline inline-block px-2 py-1 rounded ${
+            className={`cursor-pointer hover:underline inline-block px-1 py-0.5 rounded text-xs ${
               item.isManuallyOverridden
                 ? 'border-2 border-orange-500 bg-orange-50'
                 : ''
@@ -508,27 +668,32 @@ function LineItemRow({ item, categories, onUpdate, onDelete }: any) {
 
       {/* BALANCE */}
       <td
-        className={`py-3 text-right font-semibold ${
+        className={`py-2 text-right font-semibold text-xs ${
           item.balance >= 0 ? 'text-green-600' : 'text-red-600'
         }`}
       >
-        {item.balance >= 0 ? '+' : ''}${item.balance.toLocaleString()}
+        {item.balance >= 0 ? '+' : ''}${Math.abs(item.balance).toLocaleString()}
       </td>
 
-      {/* ACTIONS */}
-      <td className="py-3 text-center">
-        <button
-          onClick={onDelete}
-          className="text-red-600 hover:text-red-800 text-sm"
-        >
-          🗑️
-        </button>
+      {/* DELETE ICON */}
+      <td className="py-2 text-center">
+        {isHovered && (
+          <button
+            onClick={() => onDelete(item.id)}
+            className="p-1 border-2 border-transparent hover:border-red-600 rounded-md transition cursor-pointer"
+            title="Delete line item"
+          >
+            <Image src="/trash.svg" alt="Delete" width={16} height={16} />
+          </button>
+        )}
       </td>
     </tr>
   );
 }
 
+// ========================================
 // ADD LINE ITEM MODAL
+// ========================================
 function AddLineItemModal({ categories, onAdd, onClose }: any) {
   const [categoryId, setCategoryId] = useState('');
   const [description, setDescription] = useState('');
@@ -549,7 +714,6 @@ function AddLineItemModal({ categories, onAdd, onClose }: any) {
         <h3 className="text-xl font-bold mb-4">Add Line Item</h3>
 
         <div className="space-y-4 mb-6">
-
           <div>
             <label className="block text-sm font-medium mb-2">Category</label>
             <select
