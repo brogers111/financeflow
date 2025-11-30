@@ -65,6 +65,7 @@ const COLORS = [
 export default function BudgetView({ budget, onRefresh }: Props) {
   const [showAddLineItem, setShowAddLineItem] = useState(false);
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; description: string } | null>(null);
 
   const { data: categoriesData } = useQuery(GET_CATEGORIES);
   const categories = categoriesData?.categories || [];
@@ -290,11 +291,16 @@ export default function BudgetView({ budget, onRefresh }: Props) {
     onRefresh();
   };
 
-  const handleDeleteLineItem = async (id: string) => {
-    if (!confirm('Delete this line item?')) return;
+  const handleDeleteLineItem = async () => {
+    if (!deleteConfirm) return;
 
-    await deleteLineItem({ variables: { id } });
-    onRefresh();
+    try {
+      await deleteLineItem({ variables: { id: deleteConfirm.id } });
+      setDeleteConfirm(null);
+      onRefresh();
+    } catch (error) {
+      console.error('Delete error:', error);
+    }
   };
 
   // ========================================
@@ -470,6 +476,34 @@ export default function BudgetView({ budget, onRefresh }: Props) {
           onClose={() => setShowAddLineItem(false)}
         />
       )}
+      {/* DELETE MODAL */}
+      {deleteConfirm && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 min-w-sm max-w-md">
+          <h3 className="text-lg font-semibold mb-4 text-center">Confirm Line Item Deletion:</h3>
+          <p className="text-gray-600 mb-2 font-bold">
+            {deleteConfirm.description}
+          </p>
+          <p className="text-gray-600 mb-4">
+            This action can&apos;t be undone.
+          </p>
+          <div className="flex gap-4">
+            <button
+              onClick={handleDeleteLineItem}
+              className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 cursor-pointer"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => setDeleteConfirm(null)}
+              className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }
@@ -549,8 +583,7 @@ function LineItemRow({
   isHovered,
   onMouseEnter,
   onMouseLeave,
-  onUpdate,
-  onDelete
+  onUpdate
 }: LineItemRowProps) {
   const [editMode, setEditMode] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<any>(null);
@@ -679,7 +712,7 @@ function LineItemRow({
       <td className="py-2 text-center">
         {isHovered && (
           <button
-            onClick={() => onDelete(item.id)}
+            onClick={() => setDeleteConfirm({ id: item.id, description: item.description })}
             className="p-1 border-2 border-transparent hover:border-red-600 rounded-md transition cursor-pointer"
             title="Delete line item"
           >

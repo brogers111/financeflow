@@ -218,7 +218,7 @@ export default function CreateBudgetModal({ onClose, onCreated }: Props) {
         {/* Overlap Warning */}
         {showOverlapWarning && (
           <>
-            <h2 className="text-2xl font-bold mb-4 text-orange-600">⚠️ Overlapping Budgets Detected</h2>
+            <h2 className="text-2xl font-bold mb-4 text-orange-600">Overlapping Budgets Detected</h2>
 
             <p className="text-[#282427] mb-4">
               The following budgets overlap with your selected dates:
@@ -283,10 +283,10 @@ export default function CreateBudgetModal({ onClose, onCreated }: Props) {
                     key={key}
                     onClick={() => toggleSuggestion(suggestion.categoryId)}
                     className={`
-                      p-3 rounded-lg cursor-pointer border-2 transition-colors
+                      p-2 rounded-lg cursor-pointer border-2 hover:bg-[#d7d5c5] transition-colors
                       ${isSelected 
-                        ? 'border-[#282427] bg-[#d7d5c5]' 
-                        : 'border-gray-300 hover:border-gray-400'
+                        ? 'border-black' 
+                        : 'border-transparent'
                       }
                     `}
                   >
@@ -325,7 +325,7 @@ export default function CreateBudgetModal({ onClose, onCreated }: Props) {
                 disabled={loading || selectedSuggestions.size === 0}
                 className="flex-1 bg-[#282427] text-[#EEEBD9] py-2 px-4 rounded-lg font-semibold cursor-pointer disabled:bg-gray-400 disabled:cursor-not-allowed hover:bg-[#3a3537]"
               >
-                {loading ? 'Creating...' : `Create with ${selectedSuggestions.size} Categories`}
+                {loading ? 'Creating...' : `Create`}
               </button>
             </div>
           </>

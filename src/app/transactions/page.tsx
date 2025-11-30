@@ -23,11 +23,11 @@ type Transaction = {
   confidence?: number;
 };
 
-const formatDateLocal = (dateString: string) => {
-  const date = new Date(dateString);
-  // Adjust for timezone offset to get the correct local date
-  date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
-  return date;
+const formatDateLocal = (isoString: string) => {
+  // Extract just the YYYY-MM-DD part
+  const dateOnly = isoString.split('T')[0];
+  const [year, month, day] = dateOnly.split('-').map(Number);
+  return new Date(year, month - 1, day);
 };
 
 export default function TransactionsPage() {

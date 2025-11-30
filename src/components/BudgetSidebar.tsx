@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { TOGGLE_PIN_BUDGET, DELETE_BUDGET_PERIOD } from '@/lib/graphql/budget-queries';
 
@@ -29,7 +30,8 @@ export default function BudgetSidebar({
   onRefresh
 }: Props) {
   const [togglePin] = useMutation(TOGGLE_PIN_BUDGET);
-  const [deleteBudget] = useMutation(DELETE_BUDGET_PERIOD);
+  const [deleteBudget, { loading: deleting }] = useMutation(DELETE_BUDGET_PERIOD);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; dateRange: string } | null>(null);
 
   const pinnedBudgets = budgets.filter(b => b.isPinned);
   const unpinnedBudgets = budgets.filter(b => !b.isPinned);
@@ -40,11 +42,15 @@ export default function BudgetSidebar({
     onRefresh();
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (confirm('Delete this budget? This cannot be undone.')) {
-      await deleteBudget({ variables: { id } });
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+
+    try {
+      await deleteBudget({ variables: { id: deleteConfirm.id } });
+      setDeleteConfirm(null);
       onRefresh();
+    } catch (error) {
+      console.error('Delete error:', error);
     }
   };
 
@@ -79,7 +85,13 @@ export default function BudgetSidebar({
               {budget.isPinned ? '📌' : '📍'}
             </button>
             <button
-              onClick={(e) => handleDelete(budget.id, e)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteConfirm({
+                  id: budget.id,
+                  dateRange: formatDateRange(budget.startDate, budget.endDate)
+                });
+              }}
               className="text-xs hover:scale-110 transition-transform"
               title="Delete"
             >
@@ -145,6 +157,36 @@ export default function BudgetSidebar({
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 min-w-sm max-w-md">
+            <h3 className="text-lg font-semibold mb-4 text-center">Confirm Budget Deletion:</h3>
+            <p className="text-gray-600 mb-2 font-bold">
+              {deleteConfirm.dateRange}
+            </p>
+            <p className="text-gray-600 mb-4">
+              This action can&apos;t be undone and will delete all line items in this budget.
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 disabled:bg-gray-400 cursor-pointer"
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

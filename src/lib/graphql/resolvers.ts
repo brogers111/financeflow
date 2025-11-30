@@ -772,15 +772,43 @@ export const resolvers = {
         throw new Error('Account not found or access denied');
       }
 
-      const parseLocalDate = (dateStr: string) => {
-        const [year, month, day] = dateStr.split('-').map(Number);
-        return new Date(year, month - 1, day);
+      // Parse date - handle multiple formats
+      const parseDate = (dateInput: any): Date => {
+        // If it's already a Date object
+        if (dateInput instanceof Date) {
+          return dateInput;
+        }
+
+        // If it's a timestamp (number)
+        if (typeof dateInput === 'number') {
+          return new Date(dateInput);
+        }
+
+        // If it's a string
+        if (typeof dateInput === 'string') {
+          // Check if it's an ISO string (contains 'T')
+          if (dateInput.includes('T')) {
+            return new Date(dateInput);
+          }
+
+          // Otherwise treat as YYYY-MM-DD format
+          const [year, month, day] = dateInput.split('-').map(Number);
+          
+          // Validate the parsed values
+          if (!year || !month || !day || isNaN(year) || isNaN(month) || isNaN(day)) {
+            throw new Error(`Invalid date format: ${dateInput}`);
+          }
+          
+          return new Date(year, month - 1, day);
+        }
+
+        throw new Error(`Unsupported date format: ${typeof dateInput}`);
       };
 
       const transaction = await prisma.transaction.create({
         data: {
           accountId: input.accountId,
-          date: parseLocalDate(input.date),
+          date: parseDate(input.date),
           description: input.description,
           amount: input.amount,
           type: input.type,
@@ -1708,6 +1736,21 @@ export const resolvers = {
       return true;
     },
   },
+
+    Transaction: {
+      date: (parent: any) => {
+        // If it's already a Date object, convert to ISO string
+        if (parent.date instanceof Date) {
+          return parent.date.toISOString();
+        }
+        // If it's a timestamp number, convert to ISO string
+        if (typeof parent.date === 'number') {
+          return new Date(parent.date).toISOString();
+        }
+        // If it's already a string, return as-is
+        return parent.date;
+      }
+    },
 
   BudgetPeriod: {
     // Computes totalBudgeted by summing all line item budget amounts
