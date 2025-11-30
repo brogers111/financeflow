@@ -7,7 +7,6 @@ import {
   CREATE_BUDGET_PERIOD, 
   CREATE_BUDGET_LINE_ITEM,
   SUGGEST_BUDGET_AMOUNTS,
-  GET_BUDGET_PERIODS 
 } from '@/lib/graphql/budget-queries';
 import { GET_CATEGORIES } from '@/lib/graphql/queries';
 
@@ -19,6 +18,7 @@ interface Props {
 export default function CreateBudgetModal({ onClose, onCreated }: Props) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [error, setError] = useState('');
   const [showOverlapWarning, setShowOverlapWarning] = useState(false);
   const [overlappingPeriods, setOverlappingPeriods] = useState<any[]>([]);
   const [step, setStep] = useState<'dates' | 'suggestions'>('dates');
@@ -28,17 +28,15 @@ export default function CreateBudgetModal({ onClose, onCreated }: Props) {
   const [checkOverlap] = useLazyQuery(CHECK_BUDGET_OVERLAP);
   const [getSuggestions] = useLazyQuery(SUGGEST_BUDGET_AMOUNTS);
   const { data: categoriesData } = useQuery(GET_CATEGORIES);
-  const { data: budgetsData } = useQuery(GET_BUDGET_PERIODS);
   
   const [createBudget, { loading }] = useMutation(CREATE_BUDGET_PERIOD);
   const [createLineItem] = useMutation(CREATE_BUDGET_LINE_ITEM);
 
   const categories = categoriesData?.categories || [];
-  const existingBudgets = budgetsData?.budgetPeriods || [];
 
   const handleCheckDates = async () => {
     if (!startDate || !endDate) {
-      alert('Please select both start and end dates');
+      setError('Please select both start and end dates');
       return;
     }
 
@@ -46,9 +44,11 @@ export default function CreateBudgetModal({ onClose, onCreated }: Props) {
     const end = new Date(endDate);
 
     if (end <= start) {
-      alert('End date must be after start date');
+      setError('End date must be after start date.');
       return;
     }
+
+    setError('');
 
     // Check for overlaps
     const { data } = await checkOverlap({
@@ -103,7 +103,7 @@ export default function CreateBudgetModal({ onClose, onCreated }: Props) {
       onCreated(data.createBudgetPeriod.id);
     } catch (error) {
       console.error('Error creating budget:', error);
-      alert('Failed to create budget');
+      setError('Failed to create budget. Please try again.');
     }
   };
 
@@ -142,7 +142,7 @@ export default function CreateBudgetModal({ onClose, onCreated }: Props) {
         onCreated(budgetId);
     } catch (error) {
         console.error('Error creating budget:', error);
-        alert('Failed to create budget');
+        setError('Failed to create budget with suggestions. Please try again.');
     }
     };
 
@@ -180,7 +180,7 @@ export default function CreateBudgetModal({ onClose, onCreated }: Props) {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full p-2 border border-[#282427] rounded-lg"
+                  className="w-full p-2 border border-[#282427] rounded-lg cursor-pointer"
                 />
               </div>
 
@@ -192,10 +192,16 @@ export default function CreateBudgetModal({ onClose, onCreated }: Props) {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full p-2 border border-[#282427] rounded-lg"
+                  className="w-full p-2 border border-[#282427] rounded-lg cursor-pointer"
                 />
               </div>
             </div>
+
+            {error && (
+              <div className="mb-3 text-red-600 text-center">
+                {error}
+              </div>
+            )}
 
             <div className="flex gap-3">
               <button
@@ -218,7 +224,7 @@ export default function CreateBudgetModal({ onClose, onCreated }: Props) {
         {/* Overlap Warning */}
         {showOverlapWarning && (
           <>
-            <h2 className="text-2xl font-bold mb-4 text-orange-600">Overlapping Budgets Detected</h2>
+            <h2 className="text-2xl font-bold mb-4">Overlapping Budgets Detected</h2>
 
             <p className="text-[#282427] mb-4">
               The following budgets overlap with your selected dates:

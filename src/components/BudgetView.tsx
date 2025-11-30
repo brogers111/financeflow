@@ -220,18 +220,18 @@ export default function BudgetView({ budget, onRefresh }: Props) {
         <p className="text-sm font-semibold mb-1">{data.category}</p>
 
         <div className="text-xs space-y-1">
-          <div className="flex justify-between gap-4">
+          <div className="flex justify-between gap-2">
             <span>Budgeted:</span>
             <span className="font-semibold">${data.budgeted.toLocaleString()}</span>
           </div>
 
-          <div className="flex justify-between gap-4">
+          <div className="flex justify-between gap-2">
             <span>Actual:</span>
             <span className="font-semibold">${data.actual.toLocaleString()}</span>
           </div>
 
           <div
-            className={`flex justify-between gap-4 font-bold ${
+            className={`flex justify-between gap-2 font-bold ${
               data.budgeted - data.actual >= 0 ? 'text-green-600' : 'text-red-600'
             }`}
           >
@@ -309,24 +309,24 @@ export default function BudgetView({ budget, onRefresh }: Props) {
   return (
     <div className="p-6">
       {/* HEADER */}
-      <div className="mb-6">
+      <div className="mb-2">
         <h1 className="text-3xl font-bold text-[#EEEBD9] mb-2">Budget</h1>
         <p className="text-lg text-[#EEEBD9]">{dateRange}</p>
       </div>
 
       {/* SUMMARY CARDS */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-[#EEEBD9] p-4 rounded-lg">
+      <div className="grid grid-cols-3 gap-2 mb-2">
+        <div className="bg-[#EEEBD9] p-3 rounded-lg">
           <p className="text-xs text-gray-500 mb-1">Total Budgeted</p>
           <p className="text-2xl font-bold">${budget.totalBudgeted.toLocaleString()}</p>
         </div>
 
-        <div className="bg-[#EEEBD9] p-4 rounded-lg">
+        <div className="bg-[#EEEBD9] p-3 rounded-lg">
           <p className="text-xs text-gray-500 mb-1">Total Actual</p>
           <p className="text-2xl font-bold">${budget.totalActual.toLocaleString()}</p>
         </div>
 
-        <div className="bg-[#EEEBD9] p-4 rounded-lg">
+        <div className="bg-[#EEEBD9] p-3 rounded-lg">
           <p className="text-xs text-gray-500 mb-1">Balance</p>
           <p className={`text-2xl font-bold ${budget.totalBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             {budget.totalBalance >= 0 ? '+' : ''}${budget.totalBalance.toLocaleString()}
@@ -335,9 +335,9 @@ export default function BudgetView({ budget, onRefresh }: Props) {
       </div>
 
       {/* GRAPHS */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-2 mb-2">
         {/* Graph 1 — Budget vs Actual */}
-        <div className="bg-[#EEEBD9] rounded-lg p-4">
+        <div className="bg-[#EEEBD9] rounded-lg p-3">
           <h3 className="text-md font-semibold mb-3">Budget vs Actual</h3>
 
           <ResponsiveContainer width="100%" height={200}>
@@ -359,7 +359,7 @@ export default function BudgetView({ budget, onRefresh }: Props) {
         </div>
 
         {/* Graph 2 — Over/Under */}
-        <div className="bg-[#EEEBD9] rounded-lg p-4">
+        <div className="bg-[#EEEBD9] rounded-lg p-3">
           <h3 className="text-md font-semibold mb-3">Over/Under Budget</h3>
 
           <ResponsiveContainer width="100%" height={200}>
@@ -381,7 +381,7 @@ export default function BudgetView({ budget, onRefresh }: Props) {
         </div>
 
         {/* Graph 3 — Spend Distribution */}
-        <div className="bg-[#EEEBD9] rounded-lg p-4">
+        <div className="bg-[#EEEBD9] rounded-lg p-3">
           <h3 className="text-md font-semibold mb-3">Spend Distribution</h3>
 
           <ResponsiveContainer width="100%" height={200}>
@@ -427,19 +427,19 @@ export default function BudgetView({ budget, onRefresh }: Props) {
       </div>
 
       {/* ADD LINE ITEM BUTTON */}
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mb-2">
         <button
           onClick={() => setShowAddLineItem(true)}
-          className="bg-[#282427] text-[#EEEBD9] px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer hover:bg-[#3a3537]"
+          className="bg-[#282427] text-[#EEEBD9] px-4 py-2 border-2 border-[#EEEBD9] rounded-lg text-sm font-semibold cursor-pointer hover:bg-[#3a3537]"
         >
           + Add Line Item
         </button>
       </div>
 
       {/* LINE ITEMS TABLES - TWO COLUMNS */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-2">
         {/* LEFT COLUMN */}
-        <div className="space-y-6">
+        <div className="space-y-2">
           {leftColumnCategories.map(({ category, items }) => (
             <CategoryTable
               key={category?.id || 'uncategorized'}
@@ -448,13 +448,13 @@ export default function BudgetView({ budget, onRefresh }: Props) {
               hoveredRow={hoveredRow}
               setHoveredRow={setHoveredRow}
               onUpdate={handleUpdateLineItem}
-              onDelete={handleDeleteLineItem}
+              onDelete={(item) => setDeleteConfirm(item)}
             />
           ))}
         </div>
 
         {/* RIGHT COLUMN */}
-        <div className="space-y-6">
+        <div className="space-y-2">
           {rightColumnCategories.map(({ category, items }) => (
             <CategoryTable
               key={category?.id || 'uncategorized'}
@@ -463,7 +463,7 @@ export default function BudgetView({ budget, onRefresh }: Props) {
               hoveredRow={hoveredRow}
               setHoveredRow={setHoveredRow}
               onUpdate={handleUpdateLineItem}
-              onDelete={handleDeleteLineItem}
+              onDelete={(item) => setDeleteConfirm(item)}
             />
           ))}
         </div>
@@ -487,7 +487,7 @@ export default function BudgetView({ budget, onRefresh }: Props) {
           <p className="text-gray-600 mb-4">
             This action can&apos;t be undone.
           </p>
-          <div className="flex gap-4">
+          <div className="flex gap-2">
             <button
               onClick={handleDeleteLineItem}
               className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 cursor-pointer"
@@ -517,7 +517,7 @@ interface CategoryTableProps {
   hoveredRow: string | null;
   setHoveredRow: (id: string | null) => void;
   onUpdate: (id: string, field: string, value: any) => void;
-  onDelete: (id: string) => void;
+  onDelete: (item: { id: string; description: string }) => void;
 }
 
 function CategoryTable({
@@ -540,11 +540,11 @@ function CategoryTable({
       <table className="w-full">
         <thead>
           <tr className="border-b-2 border-[#282427]">
+            <th className="w-8"></th>
             <th className="text-left py-2 text-xs font-semibold">Description</th>
             <th className="text-right py-2 text-xs font-semibold w-20">Budget</th>
             <th className="text-right py-2 text-xs font-semibold w-20">Actual</th>
             <th className="text-right py-2 text-xs font-semibold w-20">Balance</th>
-            <th className="w-8"></th>
           </tr>
         </thead>
 
@@ -575,7 +575,7 @@ interface LineItemRowProps {
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   onUpdate: (id: string, field: string, value: any) => void;
-  onDelete: (id: string) => void;
+  onDelete: (item: { id: string; description: string }) => void;
 }
 
 function LineItemRow({
@@ -583,7 +583,8 @@ function LineItemRow({
   isHovered,
   onMouseEnter,
   onMouseLeave,
-  onUpdate
+  onUpdate,
+  onDelete
 }: LineItemRowProps) {
   const [editMode, setEditMode] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<any>(null);
@@ -605,6 +606,19 @@ function LineItemRow({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
+      {/* DELETE ICON */}
+      <td className="w-8 text-left">
+        {isHovered && (
+          <button
+            onClick={() => onDelete({ id: item.id, description: item.description })}
+            className="w-fit h-fit p-1 border-2 border-transparent hover:border-red-600 rounded-md transition cursor-pointer"
+            title="Delete line item"
+          >
+            <Image src="/trash.svg" alt="Delete" width={16} height={16} />
+          </button>
+        )}
+      </td>
+
       {/* DESCRIPTION */}
       <td className="py-2">
         {editMode === 'description' ? (
@@ -707,19 +721,6 @@ function LineItemRow({
       >
         {item.balance >= 0 ? '+' : ''}${Math.abs(item.balance).toLocaleString()}
       </td>
-
-      {/* DELETE ICON */}
-      <td className="py-2 text-center">
-        {isHovered && (
-          <button
-            onClick={() => setDeleteConfirm({ id: item.id, description: item.description })}
-            className="p-1 border-2 border-transparent hover:border-red-600 rounded-md transition cursor-pointer"
-            title="Delete line item"
-          >
-            <Image src="/trash.svg" alt="Delete" width={16} height={16} />
-          </button>
-        )}
-      </td>
     </tr>
   );
 }
@@ -731,10 +732,11 @@ function AddLineItemModal({ categories, onAdd, onClose }: any) {
   const [categoryId, setCategoryId] = useState('');
   const [description, setDescription] = useState('');
   const [budgetAmount, setBudgetAmount] = useState('');
+  const [error, setError] = useState('');
 
   const handleSubmit = () => {
     if (!description || !budgetAmount) {
-      alert('Please fill in all fields');
+      setError('Please fill in all required fields');
       return;
     }
 
@@ -746,7 +748,13 @@ function AddLineItemModal({ categories, onAdd, onClose }: any) {
       <div className="bg-[#EEEBD9] rounded-lg p-6 max-w-md w-full">
         <h3 className="text-xl font-bold mb-4">Add Line Item</h3>
 
-        <div className="space-y-4 mb-6">
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-4 mb-2">
           <div>
             <label className="block text-sm font-medium mb-2">Category</label>
             <select
@@ -755,7 +763,6 @@ function AddLineItemModal({ categories, onAdd, onClose }: any) {
               className="w-full p-2 border border-[#282427] rounded-lg"
             >
               <option value="">Uncategorized</option>
-
               {categories.map((cat: any) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.icon} {cat.name}
@@ -769,7 +776,10 @@ function AddLineItemModal({ categories, onAdd, onClose }: any) {
             <input
               type="text"
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={e => {
+                setDescription(e.target.value);
+                setError('');
+              }}
               className="w-full p-2 border border-[#282427] rounded-lg"
               placeholder="e.g., Groceries, Rent, Gas"
             />
@@ -781,24 +791,28 @@ function AddLineItemModal({ categories, onAdd, onClose }: any) {
               type="number"
               step="0.01"
               value={budgetAmount}
-              onChange={e => setBudgetAmount(e.target.value)}
+              onChange={e => {
+                setBudgetAmount(e.target.value);
+                setError('');
+              }}
               className="w-full p-2 border border-[#282427] rounded-lg"
               placeholder="0.00"
             />
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <button
             onClick={onClose}
-            className="flex-1 bg-gray-300 text-[#282427] py-2 px-4 rounded-lg font-semibold hover:bg-gray-400"
+            className="flex-1 bg-gray-300 text-[#282427] py-2 px-4 rounded-lg font-semibold hover:bg-gray-400 cursor-pointer"
           >
             Cancel
           </button>
 
           <button
             onClick={handleSubmit}
-            className="flex-1 bg-[#282427] text-[#EEEBD9] py-2 px-4 rounded-lg font-semibold hover:bg-[#3a3537]"
+            disabled={!description || !budgetAmount}
+            className="flex-1 bg-[#282427] text-[#EEEBD9] py-2 px-4 rounded-lg font-semibold hover:bg-[#3a3537] disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
           >
             Add
           </button>
