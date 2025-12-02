@@ -11,8 +11,8 @@ import {
   GET_CATEGORIES
 } from '@/lib/graphql/queries';
 import {
-  BarChart,
-  Bar,
+  Area,
+  AreaChart,
   LineChart,
   Line,
   PieChart,
@@ -834,7 +834,7 @@ export default function Dashboard() {
               <Line
                 type="monotone"
                 dataKey="balance"
-                stroke="#000"
+                stroke="#666"
                 strokeWidth={1}
                 dot={(props) => {
                   const { cx, cy, value } = props;
@@ -847,7 +847,6 @@ export default function Dashboard() {
                       cx={cx}
                       cy={cy}
                       r={3}
-                      stroke="#000"
                       fill={color}
                     />
                   );
@@ -864,26 +863,59 @@ export default function Dashboard() {
           </div>
           {netWorthHistory.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={netWorthHistory}>
+              <AreaChart data={netWorthHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ddd" />
                 <XAxis dataKey="date" stroke="#666" />
                 <YAxis stroke="#666" />
                 <Tooltip content={<NetWorthTooltip />} cursor={false} />
-                <Legend content={<NetWorthLegend />}/>
+                <Legend content={<NetWorthLegend />} />
 
                 {/* Personal Cash */}
-                <Bar dataKey="personalCash" stackId="a" fill="#D496A7" radius={[10, 10, 10, 10]} />
+                <Area
+                  type="monotone"
+                  dataKey="personalCash"
+                  stackId="a"
+                  stroke="#D496A7"
+                  strokeWidth={3}
+                  fill="#D496A7"
+                  fillOpacity={0.3}
+                />
 
                 {/* Personal Savings */}
-                <Bar dataKey="personalSavings" stackId="a" fill="#35B79B" radius={[10, 10, 10, 10]} />
+                <Area
+                  type="monotone"
+                  dataKey="personalSavings"
+                  stackId="a"
+                  stroke="#35B79B"
+                  strokeWidth={3}
+                  fill="#35B79B"
+                  fillOpacity={0.3}
+                />
 
                 {/* Business Savings */}
-                <Bar dataKey="businessSavings" stackId="a" fill="#EF8354" radius={[10, 10, 10, 10]} />
+                <Area
+                  type="monotone"
+                  dataKey="businessSavings"
+                  stackId="a"
+                  stroke="#EF8354"
+                  strokeWidth={3}
+                  fill="#EF8354"
+                  fillOpacity={0.3}
+                />
 
                 {/* Investments */}
-                <Bar dataKey="investments" stackId="a" fill="#6CA6C1" radius={[10, 10, 10, 10]} />
-              </BarChart>
+                <Area
+                  type="monotone"
+                  dataKey="investments"
+                  stackId="a"
+                  stroke="#6CA6C1"
+                  strokeWidth={3}
+                  fill="#6CA6C1"
+                  fillOpacity={0.3}
+                />
+              </AreaChart>
             </ResponsiveContainer>
+
           ) : (
             <div className="h-64 flex items-center justify-center text-gray-500">
               No historical data available yet. Upload more statements to see your net worth over time.
@@ -959,12 +991,13 @@ export default function Dashboard() {
                     labelLine={false}
                     innerRadius={50}
                     outerRadius={80}
+                    cornerRadius={5}
                     fill="#8884d8"
                     dataKey="value"
                     className='cursor-pointer'
                   >
                     {categoryData.map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} stroke='#EEEBD9' />
                     ))}
                   </Pie>
                   <Tooltip
