@@ -32,8 +32,6 @@ const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F'
 export default function Dashboard() {
   const [categoryViewMode, setCategoryViewMode] = useState<'percentage' | 'amount'>('percentage');
   const [categoryTimeframe, setCategoryTimeframe] = useState<'month' | 'year'>('year');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   // Balance flow filters
   const [flowMonthsToShow, setFlowMonthsToShow] = useState(1);
@@ -57,9 +55,21 @@ export default function Dashboard() {
   const { data: investmentsData, loading: investmentsLoading } = useQuery(GET_INVESTMENT_PORTFOLIOS);
   const { data: categoriesData } = useQuery(GET_CATEGORIES);
 
-  // Monthly stats query (1-12 month)
+  // Get last complete month for monthly category breakdown
+  const lastCompleteMonth = useMemo(() => {
+    const now = new Date();
+    return {
+      year: now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear(),
+      month: now.getMonth() === 0 ? 12 : now.getMonth()
+    };
+  }, []);
+
+  // Monthly stats query for last complete month
   const { data: monthlyData } = useQuery(GET_MONTHLY_STATS, {
-    variables: { year: selectedYear, month: selectedMonth },
+    variables: { 
+      year: lastCompleteMonth.year, 
+      month: lastCompleteMonth.month 
+    },
     skip: categoryTimeframe === 'year'
   });
 
@@ -71,19 +81,20 @@ export default function Dashboard() {
     }
   });
 
-  // Yearly transactions for category breakdown
+  // Current year transactions for category breakdown
+  const currentYear = new Date().getFullYear();
   const { data: yearlyTransactions } = useQuery(GET_TRANSACTIONS, {
     variables: {
-      startDate: `${selectedYear}-01-01`,
-      endDate: `${selectedYear}-12-31`
+      startDate: `${currentYear}-01-01`,
+      endDate: `${currentYear}-12-31`
     },
     skip: categoryTimeframe === 'month'
   });
 
   // Memoize flow date range
   const flowDateRange = useMemo(() => {
-    const end = new Date(flowSelectedYear, flowSelectedMonth + 1, 0); // last day of selected month
-    const start = new Date(flowSelectedYear, flowSelectedMonth, 1); // first day of selected month
+    const end = new Date(flowSelectedYear, flowSelectedMonth + 1, 0);
+    const start = new Date(flowSelectedYear, flowSelectedMonth, 1);
     start.setMonth(start.getMonth() - (flowMonthsToShow - 1));
     const startDate = new Date(start.getFullYear(), start.getMonth(), 1);
     const endDate = end;
@@ -97,7 +108,6 @@ export default function Dashboard() {
       endDate: flowDateRange.endDate.toISOString().split('T')[0]
     }
   });
-
 
   const earliestTransactionDate = useMemo(() => {
     const transactions = allTransactionsData?.transactions || [];
@@ -130,26 +140,16 @@ export default function Dashboard() {
     return { startDate, endDate };
   }, [earliestTransactionDate]);
 
-  // Net worth transactions for range
-  const { data: netWorthTransactions } = useQuery(GET_TRANSACTIONS, {
-    variables: {
-      startDate: netWorthDateRange.startDate.toISOString().split('T')[0],
-      endDate: netWorthDateRange.endDate.toISOString().split('T')[0]
-    }
-  });
-
   // Calculate balance flow data
   const balanceFlowData = useMemo(() => {
     const transactions = flowTransactionsData?.transactions || [];
 
-    // Filter OUT excluded accounts and categories
     const filteredTransactions = transactions.filter((t: any) => {
       const accountIncluded = !excludedAccountIds.includes(t.account?.id);
       const categoryIncluded = !t.category || !excludedCategoryIds.includes(t.category.id);
       return accountIncluded && categoryIncluded;
     });
 
-    // Group transactions by day
     const dailyData: Record<string, {
       income: any[];
       expenses: any[];
@@ -158,7 +158,6 @@ export default function Dashboard() {
       isMonthBoundary?: boolean;
     }> = {};
 
-    // Initialize days in range (from startDate to endDate inclusive)
     const start = new Date(flowDateRange.startDate);
     const end = new Date(flowDateRange.endDate);
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
@@ -173,16 +172,12 @@ export default function Dashboard() {
       };
     }
 
-    // populate from transactions (safe date parsing)
     filteredTransactions.forEach((t: any) => {
-      // support timestamps or ISO strings
       const parsedDate = (() => {
         if (!t.date) return null;
-        // if it's numeric (timestamp)
         if (!Number.isNaN(Number(t.date))) {
           return new Date(Number(t.date));
         }
-        // fallback: try ISO string
         return new Date(t.date);
       })();
 
@@ -200,7 +195,6 @@ export default function Dashboard() {
       }
     });
 
-    // Build chart data with running balance
     const chartData = Object.entries(dailyData)
       .sort(([a], [b]) => a.localeCompare(b))
       .reduce((acc, [date, data]) => {
@@ -224,7 +218,6 @@ export default function Dashboard() {
     return chartData;
   }, [flowTransactionsData, excludedAccountIds, excludedCategoryIds, flowDateRange]);
 
-  // Month boundaries for vertical lines (use the short 'date' label which matches the X axis values)
   const monthBoundaries = useMemo(() =>
     balanceFlowData.filter(d => d.isMonthBoundary).map(d => d.date),
     [balanceFlowData]
@@ -248,7 +241,6 @@ export default function Dashboard() {
       hasData: boolean; 
     }> = {};
     
-    // Initialize all months
     for (let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
       const key = d.toISOString().slice(0, 7);
       monthlyBalances[key] = {
@@ -262,24 +254,19 @@ export default function Dashboard() {
 
     const sortedMonths = Object.keys(monthlyBalances).sort();
 
-    // Process each month
     for (const monthKey of sortedMonths) {
       const [year, monthNum] = monthKey.split('-').map(Number);
       const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
 
-      // For each account, find most recent balance snapshot at or before month-end
       for (const account of accounts) {
         const snapshots = account.balanceHistory || [];
         
         const relevantSnapshots = snapshots.filter((snap: any) => {
-          // Parse date - could be ISO string or timestamp string
           let snapDate: Date;
           if (typeof snap.date === 'string') {
             if (!isNaN(Number(snap.date))) {
-              // String timestamp
               snapDate = new Date(Number(snap.date));
             } else {
-              // ISO string
               snapDate = new Date(snap.date);
             }
           } else if (typeof snap.date === 'number') {
@@ -288,7 +275,6 @@ export default function Dashboard() {
             snapDate = new Date(snap.date);
           }
           
-          // Compare using UTC year/month to avoid timezone issues
           const snapYear = snapDate.getUTCFullYear();
           const snapMonth = snapDate.getUTCMonth();
           const monthEndYear = monthEnd.getUTCFullYear();
@@ -302,9 +288,7 @@ export default function Dashboard() {
 
         if (relevantSnapshots.length === 0) continue;
 
-        // Get most recent snapshot for this month
         const mostRecent = relevantSnapshots.sort((a: any, b: any) => {
-          // Parse dates the same way
           let dateA: Date, dateB: Date;
           
           if (typeof a.date === 'string' && !isNaN(Number(a.date))) {
@@ -328,13 +312,12 @@ export default function Dashboard() {
 
         const balance = mostRecent.balance;
 
-        // Categorize by account type
         if (account.accountType === 'PERSONAL') {
           if (account.type === 'CHECKING' || account.type === 'CASH') {
             monthlyBalances[monthKey].personalCash += balance;
             monthlyBalances[monthKey].hasData = true;
           } else if (account.type === 'CREDIT_CARD') {
-            monthlyBalances[monthKey].personalCash += balance; // Already negative
+            monthlyBalances[monthKey].personalCash += balance;
             monthlyBalances[monthKey].hasData = true;
           } else if (account.type === 'SAVINGS') {
             monthlyBalances[monthKey].personalSavings += balance;
@@ -348,19 +331,15 @@ export default function Dashboard() {
         }
       }
 
-      // Get investment values
       for (const portfolio of investments) {
         const snapshots = portfolio.valueHistory || [];
         
         const relevantSnapshots = snapshots.filter((snap: any) => {
-          // Parse date - could be ISO string or timestamp string
           let snapDate: Date;
           if (typeof snap.date === 'string') {
             if (!isNaN(Number(snap.date))) {
-              // String timestamp
               snapDate = new Date(Number(snap.date));
             } else {
-              // ISO string
               snapDate = new Date(snap.date);
             }
           } else if (typeof snap.date === 'number') {
@@ -369,7 +348,6 @@ export default function Dashboard() {
             snapDate = new Date(snap.date);
           }
           
-          // Compare using UTC year/month to avoid timezone issues
           const snapYear = snapDate.getUTCFullYear();
           const snapMonth = snapDate.getUTCMonth();
           const monthEndYear = monthEnd.getUTCFullYear();
@@ -410,7 +388,6 @@ export default function Dashboard() {
       }
     }
 
-    // Forward-fill missing months
     for (let i = 1; i < sortedMonths.length; i++) {
       const currentMonth = sortedMonths[i];
       const prevMonth = sortedMonths[i - 1];
@@ -433,7 +410,6 @@ export default function Dashboard() {
       }
     }
 
-    // Build chart data
     const chartData = sortedMonths
       .filter(month => monthlyBalances[month].hasData)
       .map(month => {
@@ -454,7 +430,6 @@ export default function Dashboard() {
     return chartData;
   }, [accountsData, investmentsData, netWorthDateRange]);
 
-  // Loading state
   if (statsLoading || accountsLoading || investmentsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -464,8 +439,6 @@ export default function Dashboard() {
   }
 
   const stats = statsData?.dashboardStats || {};
-  const personalCash = stats.personalCash || 0;
-  const businessCash = stats.businessCash || 0;
   const accounts = accountsData?.accounts || [];
   const investments = investmentsData?.investmentPortfolios || [];
   const categories = categoriesData?.categories || [];
@@ -475,8 +448,6 @@ export default function Dashboard() {
     0
   );
   
-  const incomeChange = stats.incomeChange || 0;
-  const expensesChange = stats.expensesChange || 0;
   const cashChange = stats.cashChange || 0;
   const savingsChange = stats.savingsChange || 0;
   const investmentChange = stats.investmentChange || 0;
