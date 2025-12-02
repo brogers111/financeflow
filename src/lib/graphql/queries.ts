@@ -11,6 +11,11 @@ export const GET_ACCOUNTS = gql`
       institution
       balance
       isActive
+      balanceHistory {
+        id
+        balance
+        date
+      }
     }
   }
 `;
@@ -145,7 +150,9 @@ export const GET_NET_WORTH_HISTORY = gql`
   query GetNetWorthHistory($startDate: String!, $endDate: String!) {
     netWorthHistory(startDate: $startDate, endDate: $endDate) {
       date
-      totalCash
+      personalCash
+      personalSavings
+      businessSavings
       investments
       netWorth
     }

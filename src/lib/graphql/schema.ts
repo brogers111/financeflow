@@ -96,7 +96,9 @@ export const typeDefs = gql`
 
   type NetWorthData {
     date: String!
-    totalCash: Float!
+    personalCash: Float!
+    personalSavings: Float!
+    businessSavings: Float!
     investments: Float!
     netWorth: Float!
   }
@@ -287,7 +289,7 @@ export const typeDefs = gql`
       currentValue: Float
     ): InvestmentPortfolio!
 
-    updateInvestmentPortfolio(id: ID!, input: updateInvestmentPortfolioInput!): InvestmentPortfolio!
+    updateInvestmentPortfolio(id: ID!, input: UpdateInvestmentPortfolioInput!): InvestmentPortfolio!
     deleteInvestmentPortfolio(id: ID!): Boolean!
 
     updateInvestmentValue(
@@ -374,7 +376,7 @@ export const typeDefs = gql`
     needsCategorization: [Transaction!]!
   }
 
-  input updateInvestmentPortfolioInput{
+  input UpdateInvestmentPortfolioInput{
     name: String
     type: String
     institution: String

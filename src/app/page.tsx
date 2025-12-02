@@ -82,12 +82,9 @@ export default function Dashboard() {
 
   // Memoize flow date range
   const flowDateRange = useMemo(() => {
-    // flowSelectedMonth is 0-11
-    // compute start by subtracting (flowMonthsToShow - 1) months from flowSelectedMonth
     const end = new Date(flowSelectedYear, flowSelectedMonth + 1, 0); // last day of selected month
     const start = new Date(flowSelectedYear, flowSelectedMonth, 1); // first day of selected month
     start.setMonth(start.getMonth() - (flowMonthsToShow - 1));
-    // ensure start is the 1st of that month
     const startDate = new Date(start.getFullYear(), start.getMonth(), 1);
     const endDate = end;
     return { startDate, endDate };
@@ -233,6 +230,230 @@ export default function Dashboard() {
     [balanceFlowData]
   );
 
+  // Net worth history - using BalanceSnapshots
+  const netWorthHistory = useMemo(() => {
+    const accounts = accountsData?.accounts || [];
+    const investments = investmentsData?.investmentPortfolios || [];
+    
+    if (!accounts.length && !investments.length) return [];
+
+    const start = new Date(netWorthDateRange.startDate);
+    const end = new Date(netWorthDateRange.endDate);
+    
+    const monthlyBalances: Record<string, { 
+      personalCash: number; 
+      personalSavings: number;
+      businessSavings: number;
+      investments: number;
+      hasData: boolean; 
+    }> = {};
+    
+    // Initialize all months
+    for (let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
+      const key = d.toISOString().slice(0, 7);
+      monthlyBalances[key] = {
+        personalCash: 0,
+        personalSavings: 0,
+        businessSavings: 0,
+        investments: 0,
+        hasData: false
+      };
+    }
+
+    const sortedMonths = Object.keys(monthlyBalances).sort();
+
+    // Process each month
+    for (const monthKey of sortedMonths) {
+      const [year, monthNum] = monthKey.split('-').map(Number);
+      const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
+
+      // For each account, find most recent balance snapshot at or before month-end
+      for (const account of accounts) {
+        const snapshots = account.balanceHistory || [];
+        
+        const relevantSnapshots = snapshots.filter((snap: any) => {
+          // Parse date - could be ISO string or timestamp string
+          let snapDate: Date;
+          if (typeof snap.date === 'string') {
+            if (!isNaN(Number(snap.date))) {
+              // String timestamp
+              snapDate = new Date(Number(snap.date));
+            } else {
+              // ISO string
+              snapDate = new Date(snap.date);
+            }
+          } else if (typeof snap.date === 'number') {
+            snapDate = new Date(snap.date);
+          } else {
+            snapDate = new Date(snap.date);
+          }
+          
+          // Compare using UTC year/month to avoid timezone issues
+          const snapYear = snapDate.getUTCFullYear();
+          const snapMonth = snapDate.getUTCMonth();
+          const monthEndYear = monthEnd.getUTCFullYear();
+          const monthEndMonth = monthEnd.getUTCMonth();
+          
+          const snapYearMonth = snapYear * 12 + snapMonth;
+          const monthEndYearMonth = monthEndYear * 12 + monthEndMonth;
+          
+          return snapYearMonth <= monthEndYearMonth;
+        });
+
+        if (relevantSnapshots.length === 0) continue;
+
+        // Get most recent snapshot for this month
+        const mostRecent = relevantSnapshots.sort((a: any, b: any) => {
+          // Parse dates the same way
+          let dateA: Date, dateB: Date;
+          
+          if (typeof a.date === 'string' && !isNaN(Number(a.date))) {
+            dateA = new Date(Number(a.date));
+          } else if (typeof a.date === 'number') {
+            dateA = new Date(a.date);
+          } else {
+            dateA = new Date(a.date);
+          }
+          
+          if (typeof b.date === 'string' && !isNaN(Number(b.date))) {
+            dateB = new Date(Number(b.date));
+          } else if (typeof b.date === 'number') {
+            dateB = new Date(b.date);
+          } else {
+            dateB = new Date(b.date);
+          }
+          
+          return dateB.getTime() - dateA.getTime();
+        })[0];
+
+        const balance = mostRecent.balance;
+
+        // Categorize by account type
+        if (account.accountType === 'PERSONAL') {
+          if (account.type === 'CHECKING' || account.type === 'CASH') {
+            monthlyBalances[monthKey].personalCash += balance;
+            monthlyBalances[monthKey].hasData = true;
+          } else if (account.type === 'CREDIT_CARD') {
+            monthlyBalances[monthKey].personalCash += balance; // Already negative
+            monthlyBalances[monthKey].hasData = true;
+          } else if (account.type === 'SAVINGS') {
+            monthlyBalances[monthKey].personalSavings += balance;
+            monthlyBalances[monthKey].hasData = true;
+          }
+        } else if (account.accountType === 'BUSINESS') {
+          if (account.type === 'SAVINGS' || account.type === 'CHECKING' || account.type === 'CASH') {
+            monthlyBalances[monthKey].businessSavings += balance;
+            monthlyBalances[monthKey].hasData = true;
+          }
+        }
+      }
+
+      // Get investment values
+      for (const portfolio of investments) {
+        const snapshots = portfolio.valueHistory || [];
+        
+        const relevantSnapshots = snapshots.filter((snap: any) => {
+          // Parse date - could be ISO string or timestamp string
+          let snapDate: Date;
+          if (typeof snap.date === 'string') {
+            if (!isNaN(Number(snap.date))) {
+              // String timestamp
+              snapDate = new Date(Number(snap.date));
+            } else {
+              // ISO string
+              snapDate = new Date(snap.date);
+            }
+          } else if (typeof snap.date === 'number') {
+            snapDate = new Date(snap.date);
+          } else {
+            snapDate = new Date(snap.date);
+          }
+          
+          // Compare using UTC year/month to avoid timezone issues
+          const snapYear = snapDate.getUTCFullYear();
+          const snapMonth = snapDate.getUTCMonth();
+          const monthEndYear = monthEnd.getUTCFullYear();
+          const monthEndMonth = monthEnd.getUTCMonth();
+          
+          const snapYearMonth = snapYear * 12 + snapMonth;
+          const monthEndYearMonth = monthEndYear * 12 + monthEndMonth;
+          
+          return snapYearMonth <= monthEndYearMonth;
+        });
+
+        if (relevantSnapshots.length > 0) {
+          const mostRecent = relevantSnapshots.sort((a: any, b: any) => {
+            let dateA: Date, dateB: Date;
+            
+            if (typeof a.date === 'string' && !isNaN(Number(a.date))) {
+              dateA = new Date(Number(a.date));
+            } else if (typeof a.date === 'number') {
+              dateA = new Date(a.date);
+            } else {
+              dateA = new Date(a.date);
+            }
+            
+            if (typeof b.date === 'string' && !isNaN(Number(b.date))) {
+              dateB = new Date(Number(b.date));
+            } else if (typeof b.date === 'number') {
+              dateB = new Date(b.date);
+            } else {
+              dateB = new Date(b.date);
+            }
+            
+            return dateB.getTime() - dateA.getTime();
+          })[0];
+          
+          monthlyBalances[monthKey].investments += mostRecent.value;
+          monthlyBalances[monthKey].hasData = true;
+        }
+      }
+    }
+
+    // Forward-fill missing months
+    for (let i = 1; i < sortedMonths.length; i++) {
+      const currentMonth = sortedMonths[i];
+      const prevMonth = sortedMonths[i - 1];
+      
+      if (!monthlyBalances[currentMonth].hasData) {
+        monthlyBalances[currentMonth] = { ...monthlyBalances[prevMonth], hasData: true };
+      } else {
+        if (monthlyBalances[currentMonth].personalCash === 0 && monthlyBalances[prevMonth].personalCash !== 0) {
+          monthlyBalances[currentMonth].personalCash = monthlyBalances[prevMonth].personalCash;
+        }
+        if (monthlyBalances[currentMonth].personalSavings === 0 && monthlyBalances[prevMonth].personalSavings !== 0) {
+          monthlyBalances[currentMonth].personalSavings = monthlyBalances[prevMonth].personalSavings;
+        }
+        if (monthlyBalances[currentMonth].businessSavings === 0 && monthlyBalances[prevMonth].businessSavings !== 0) {
+          monthlyBalances[currentMonth].businessSavings = monthlyBalances[prevMonth].businessSavings;
+        }
+        if (monthlyBalances[currentMonth].investments === 0 && monthlyBalances[prevMonth].investments !== 0) {
+          monthlyBalances[currentMonth].investments = monthlyBalances[prevMonth].investments;
+        }
+      }
+    }
+
+    // Build chart data
+    const chartData = sortedMonths
+      .filter(month => monthlyBalances[month].hasData)
+      .map(month => {
+        const data = monthlyBalances[month];
+        const [year, monthNum] = month.split('-').map(Number);
+        const monthDate = new Date(year, monthNum - 1, 1);
+        
+        return {
+          date: monthDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+          personalCash: Math.round(data.personalCash * 100) / 100,
+          personalSavings: Math.round(data.personalSavings * 100) / 100,
+          businessSavings: Math.round(data.businessSavings * 100) / 100,
+          investments: Math.round(data.investments * 100) / 100,
+          netWorth: Math.round((data.personalCash + data.personalSavings + data.businessSavings + data.investments) * 100) / 100
+        };
+      });
+
+    return chartData;
+  }, [accountsData, investmentsData, netWorthDateRange]);
+
   // Loading state
   if (statsLoading || accountsLoading || investmentsLoading) {
     return (
@@ -300,48 +521,6 @@ export default function Dashboard() {
         : item.total,
       color: item.color
     })).sort((a, b) => b.value - a.value);
-  }
-
-  // Net worth history (simple snapshot per month based on current stats + investments)
-  const netWorthHistory: any[] = [];
-  if (netWorthTransactions?.transactions) {
-    const accounts = accountsData?.accounts || [];
-    
-    const currentPersonalCash = accounts
-      .filter((a: any) => (a.type === 'CHECKING' || a.type === 'SAVINGS' || a.type === 'CASH') && a.accountType === 'PERSONAL')
-      .reduce((sum: number, a: any) => sum + (a.balance || 0), 0);
-      
-    const currentBusinessCash = accounts
-      .filter((a: any) => (a.type === 'CHECKING' || a.type === 'SAVINGS' || a.type === 'CASH') && a.accountType === 'BUSINESS')
-      .reduce((sum: number, a: any) => sum + (a.balance || 0), 0);
-
-    const runningInvestments = totalInvestments;
-
-    const start = new Date(netWorthDateRange.startDate);
-    const end = new Date(netWorthDateRange.endDate);
-    
-    const monthlyBalances: Record<string, { personalCash: number; businessCash: number; investments: number }> = {};
-    
-    for (let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
-      const key = d.toISOString().slice(0, 7);
-      monthlyBalances[key] = {
-        personalCash: currentPersonalCash,
-        businessCash: currentBusinessCash,
-        investments: runningInvestments
-      };
-    }
-
-    Object.entries(monthlyBalances)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .forEach(([month, values]) => {
-        netWorthHistory.push({
-          date: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-          personalCash: values.personalCash,
-          businessCash: values.businessCash,
-          investments: values.investments,
-          netWorth: values.personalCash + values.businessCash + values.investments
-        });
-      });
   }
 
   const monthNames = [
@@ -422,57 +601,42 @@ export default function Dashboard() {
       year: "numeric"
     });
 
-
     return (
       <div className="max-w-md">
-        {/* Date */}
         <p className="text-xs font-semibold bg-[#EEEBD9] px-2 border border-[#282427] rounded shadow-lg inline-block">
           {fullMonth}
         </p>
 
         {/* Personal Cash */}
         <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
-          <p className="text-sm font-semibold text-[#D496A7]">
-            Personal Cash:
-          </p>
-          <p className="text-sm font-semibold text-[#D496A7]">
-            ${data.personalCash.toLocaleString()}
-          </p>
+          <p className="text-sm font-semibold text-[#D496A7]">Personal Cash:</p>
+          <p className="text-sm font-semibold text-[#D496A7]">${data.personalCash.toLocaleString()}</p>
         </div>
 
-        {/* Business Cash */}
+        {/* Personal Savings */}
         <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
-          <p className="text-sm font-semibold text-[#EF8354]">
-            Business Cash:
-          </p>
-          <p className="text-sm font-semibold text-[#EF8354]">
-            ${data.businessCash.toLocaleString()}
-          </p>
+          <p className="text-sm font-semibold text-[#35B79B]">Personal Savings:</p>
+          <p className="text-sm font-semibold text-[#35B79B]">${data.personalSavings.toLocaleString()}</p>
+        </div>
+
+        {/* Business Savings */}
+        <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
+          <p className="text-sm font-semibold text-[#EF8354]">Business Savings:</p>
+          <p className="text-sm font-semibold text-[#EF8354]">${data.businessSavings.toLocaleString()}</p>
         </div>
 
         {/* Investments */}
         <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
-          <p className="text-sm font-semibold text-[#6CA6C1]">
-            Investments:
-          </p>
+          <p className="text-sm font-semibold text-[#6CA6C1]">Investments:</p>
           <p className='text-sm font-semibold text-[#6CA6C1]'>
-            {data.investments.toLocaleString('en-US', {
-              style: 'currency',
-              currency: 'USD',
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+            ${data.investments.toLocaleString()}
           </p>
         </div>
 
         {/* Net Worth */}
         <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
-          <p className="text-md font-bold text-[#282427]">
-            Net Worth:
-          </p>
-          <p className="text-md font-bold text-[#282427]">
-            ${data.netWorth.toLocaleString()}
-          </p>
+          <p className="text-md font-bold text-[#282427]">Net Worth:</p>
+          <p className="text-md font-bold text-[#282427]">${data.netWorth.toLocaleString()}</p>
         </div>
       </div>
     );
@@ -706,8 +870,11 @@ export default function Dashboard() {
                 {/* Personal Cash */}
                 <Bar dataKey="personalCash" stackId="a" fill="#D496A7" radius={[10, 10, 10, 10]} />
 
-                {/* Business Cash */}
-                <Bar dataKey="businessCash" stackId="a" fill="#EF8354" radius={[10, 10, 10, 10]} />
+                {/* Personal Savings */}
+                <Bar dataKey="personalSavings" stackId="a" fill="#35B79B" radius={[10, 10, 10, 10]} />
+
+                {/* Business Savings */}
+                <Bar dataKey="businessSavings" stackId="a" fill="#EF8354" radius={[10, 10, 10, 10]} />
 
                 {/* Investments */}
                 <Bar dataKey="investments" stackId="a" fill="#6CA6C1" radius={[10, 10, 10, 10]} />

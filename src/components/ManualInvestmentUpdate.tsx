@@ -55,7 +55,6 @@ export default function ManualInvestmentUpdate() {
   };
 
   const portfolios = portfoliosData?.investmentPortfolios || [];
-  console.log('Portfolios:', portfolios);
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-[#EEEBD9] rounded-xl">

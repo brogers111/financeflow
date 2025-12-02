@@ -414,41 +414,163 @@ export const resolvers = {
     },
 
     // Fetch net worth history
-    netWorthHistory: async (_parent: unknown, { startDate, endDate }: { startDate: string; endDate: string }) => {
+    netWorthHistory: async (_parent: unknown, { startDate, endDate }: { startDate: string; endDate: string }, context: any) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
       const start = new Date(startDate);
       const end = new Date(endDate);
 
-      const snapshots = await prisma.balanceSnapshot.findMany({
+      // Get all accounts for this user
+      const accounts = await prisma.financialAccount.findMany({
+        where: { 
+          userId: context.user.id,
+          isActive: true
+        }
+      });
+
+      // Get all balance snapshots in the date range
+      const balanceSnapshots = await prisma.balanceSnapshot.findMany({
         where: {
+          account: { userId: context.user.id },
           date: { gte: start, lte: end }
         },
-        include: { account: true },
+        include: {
+          account: true
+        },
         orderBy: { date: 'asc' }
       });
 
-      const byDate: Record<string, { cash: number; investments: number }> = {};
-
-      snapshots.forEach(snap => {
-        const dateKey = snap.date.toISOString().split('T')[0];
-        if (!byDate[dateKey]) {
-          byDate[dateKey] = { cash: 0, investments: 0 };
-        }
-
-        if (snap.account.type === AccountType.CHECKING || 
-            snap.account.type === AccountType.SAVINGS || 
-            snap.account.type === AccountType.CASH) {
-          byDate[dateKey].cash += snap.balance;
-        } else if (snap.account.type === AccountType.INVESTMENT) {
-          byDate[dateKey].investments += snap.balance;
+      // Get all investment portfolios with their snapshots
+      const portfolios = await prisma.investmentPortfolio.findMany({
+        where: { userId: context.user.id },
+        include: {
+          valueHistory: {
+            where: {
+              date: { gte: start, lte: end }
+            },
+            orderBy: { date: 'desc' }
+          }
         }
       });
 
-      return Object.entries(byDate).map(([date, values]) => ({
-        date,
-        totalCash: values.cash,
-        investments: values.investments,
-        netWorth: values.cash + values.investments
-      }));
+      // Build month-end snapshots
+      const monthlyData: Record<string, {
+        personalCash: number;
+        personalSavings: number;
+        businessSavings: number;
+        investments: number;
+      }> = {};
+
+      // Initialize all months in range
+      for (let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
+        const monthKey = d.toISOString().slice(0, 7); // YYYY-MM
+        monthlyData[monthKey] = {
+          personalCash: 0,
+          personalSavings: 0,
+          businessSavings: 0,
+          investments: 0
+        };
+      }
+
+      const sortedMonths = Object.keys(monthlyData).sort();
+
+      // Process balance snapshots by month
+      for (const monthKey of sortedMonths) {
+        const [year, monthNum] = monthKey.split('-').map(Number);
+        const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
+
+        // For each account, find the most recent snapshot at or before month-end
+        for (const account of accounts) {
+          const accountSnapshots = balanceSnapshots.filter(
+            snap => snap.accountId === account.id && snap.date <= monthEnd
+          );
+
+          if (accountSnapshots.length === 0) continue;
+
+          // Get the most recent snapshot for this month
+          const mostRecentSnapshot = accountSnapshots
+            .sort((a, b) => b.date.getTime() - a.date.getTime())[0];
+
+          const balance = mostRecentSnapshot.balance;
+
+          // Categorize by account type and category
+          if (account.accountType === AccountCategory.PERSONAL) {
+            if (account.type === AccountType.CHECKING || account.type === AccountType.CASH) {
+              monthlyData[monthKey].personalCash += balance;
+            } else if (account.type === AccountType.CREDIT_CARD) {
+              // Credit cards subtract from cash (they're negative in DB)
+              monthlyData[monthKey].personalCash += balance;
+            } else if (account.type === AccountType.SAVINGS) {
+              monthlyData[monthKey].personalSavings += balance;
+            }
+          } else if (account.accountType === AccountCategory.BUSINESS) {
+            if (account.type === AccountType.SAVINGS || account.type === AccountType.CHECKING || account.type === AccountType.CASH) {
+              monthlyData[monthKey].businessSavings += balance;
+            }
+          }
+        }
+
+        // Get investment values for this month
+        for (const portfolio of portfolios) {
+          const portfolioSnapshots = portfolio.valueHistory.filter(
+            snap => new Date(snap.date) <= monthEnd
+          );
+
+          if (portfolioSnapshots.length > 0) {
+            // Already sorted desc, take first (most recent)
+            monthlyData[monthKey].investments += portfolioSnapshots[0].value;
+          }
+        }
+      }
+
+      // Forward-fill missing months with previous month's values
+      for (let i = 1; i < sortedMonths.length; i++) {
+        const currentMonth = sortedMonths[i];
+        const prevMonth = sortedMonths[i - 1];
+        
+        // Forward-fill each component if it's zero but previous wasn't
+        if (monthlyData[currentMonth].personalCash === 0 && monthlyData[prevMonth].personalCash !== 0) {
+          monthlyData[currentMonth].personalCash = monthlyData[prevMonth].personalCash;
+        }
+        if (monthlyData[currentMonth].personalSavings === 0 && monthlyData[prevMonth].personalSavings !== 0) {
+          monthlyData[currentMonth].personalSavings = monthlyData[prevMonth].personalSavings;
+        }
+        if (monthlyData[currentMonth].businessSavings === 0 && monthlyData[prevMonth].businessSavings !== 0) {
+          monthlyData[currentMonth].businessSavings = monthlyData[prevMonth].businessSavings;
+        }
+        if (monthlyData[currentMonth].investments === 0 && monthlyData[prevMonth].investments !== 0) {
+          monthlyData[currentMonth].investments = monthlyData[prevMonth].investments;
+        }
+      }
+
+      // Filter and format results
+      const result = sortedMonths
+        .filter(month => {
+          const data = monthlyData[month];
+          return (
+            data.personalCash !== 0 ||
+            data.personalSavings !== 0 ||
+            data.businessSavings !== 0 ||
+            data.investments !== 0
+          );
+        })
+        .map(month => {
+          const data = monthlyData[month];
+          return {
+            date: month,
+            personalCash: Math.round(data.personalCash * 100) / 100,
+            personalSavings: Math.round(data.personalSavings * 100) / 100,
+            businessSavings: Math.round(data.businessSavings * 100) / 100,
+            investments: Math.round(data.investments * 100) / 100,
+            netWorth: Math.round((data.personalCash + data.personalSavings + data.businessSavings + data.investments) * 100) / 100
+          };
+        });
+
+      console.log('Net Worth History Debug:', JSON.stringify(result, null, 2));
+
+      return result;
     },
 
     investmentPortfolios: async (_parent: unknown, _args: unknown, context: any) => {
@@ -456,13 +578,24 @@ export const resolvers = {
         throw new Error('Not authenticated');
       }
 
-      return prisma.investmentPortfolio.findMany({
-        where: { userId: context.user.id },  // Only user's portfolios
+      const portfolios = await prisma.investmentPortfolio.findMany({
+        where: { userId: context.user.id },
         include: {
           valueHistory: {
             orderBy: { date: 'desc' }
           }
         }
+      });
+
+      // Calculate the actual current value from the most recent snapshot
+      return portfolios.map(portfolio => {
+        // Get the most recent snapshot
+        const mostRecentSnapshot = portfolio.valueHistory[0];
+        
+        return {
+          ...portfolio,
+          currentValue: mostRecentSnapshot ? mostRecentSnapshot.value : 0
+        };
       });
     },
 
@@ -1276,8 +1409,28 @@ export const resolvers = {
                 balance: endingBalance
               }
             });
+
+            // CREATE BALANCE SNAPSHOT - ADD THIS
+            await prisma.balanceSnapshot.create({
+              data: {
+                accountId: accountId,
+                balance: endingBalance,
+                date: statementEndDate
+              }
+            });
+            console.log(`📸 Created balance snapshot for ${statementEndDate.toISOString()}: $${endingBalance}`);
           } else {
             console.log(`⏭️ Skipping balance update - statement is older than existing transactions`);
+            
+            // STILL CREATE SNAPSHOT FOR HISTORICAL MONTH - ADD THIS
+            await prisma.balanceSnapshot.create({
+              data: {
+                accountId: accountId,
+                balance: endingBalance,
+                date: statementEndDate
+              }
+            });
+            console.log(`📸 Created historical balance snapshot for ${statementEndDate.toISOString()}: $${endingBalance}`);
           }
         }
 
@@ -1308,10 +1461,9 @@ export const resolvers = {
       },
       context: any
     ) => {
-        // Get user from auth context
-        if (!context.user?.id) {
-          throw new Error('Not authenticated');
-        }
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
 
       const portfolio = await prisma.investmentPortfolio.create({
         data: {
@@ -1348,23 +1500,58 @@ export const resolvers = {
         value: number;
         date: string;
         notes?: string;
-      }
+      },
+      context: any
     ) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      // Verify portfolio belongs to user
+      const existingPortfolio = await prisma.investmentPortfolio.findFirst({
+        where: {
+          id: portfolioId,
+          userId: context.user.id
+        }
+      });
+
+      if (!existingPortfolio) {
+        throw new Error('Portfolio not found or access denied');
+      }
+
+      // Parse date and set to noon UTC to avoid timezone issues
+      const inputDate = new Date(date);
+      const snapshotDate = new Date(Date.UTC(
+        inputDate.getUTCFullYear(),
+        inputDate.getUTCMonth(),
+        inputDate.getUTCDate(),
+        12, 0, 0, 0
+      ));
+      
+      console.log(`📅 Input date: ${date}`);
+      console.log(`📅 Parsed to noon UTC: ${snapshotDate.toISOString()}`);
+      
       // Create a new snapshot
       await prisma.investmentSnapshot.create({
         data: {
           portfolioId,
           value,
-          date: new Date(date),
+          date: snapshotDate,
           notes
         }
       });
 
-      // Update the current value on the portfolio
+      // Get the most recent snapshot to determine current value
+      const mostRecentSnapshot = await prisma.investmentSnapshot.findFirst({
+        where: { portfolioId },
+        orderBy: { date: 'desc' }
+      });
+
+      // Update the portfolio's currentValue with the most recent snapshot
       const portfolio = await prisma.investmentPortfolio.update({
         where: { id: portfolioId },
         data: {
-          currentValue: value,
+          currentValue: mostRecentSnapshot?.value || 0,
           updatedAt: new Date()
         },
         include: {
@@ -1374,7 +1561,7 @@ export const resolvers = {
         }
       });
 
-      console.log(`📈 Updated ${portfolio.name} to $${value}`);
+      console.log(`📈 Investment snapshot created for ${portfolio.name}: $${value} on ${snapshotDate.toISOString()}`);
 
       return portfolio;
     },
@@ -1839,6 +2026,30 @@ export const resolvers = {
     isManuallyOverridden: (parent: any) => {
       return parent.manualOverride !== null;
     }
-  }
+  },
+
+  BalanceSnapshot: {
+      date: (parent: any) => {
+        if (parent.date instanceof Date) {
+          return parent.date.toISOString();
+        }
+        if (typeof parent.date === 'number') {
+          return new Date(parent.date).toISOString();
+        }
+        return parent.date;
+      }
+    },
+
+    InvestmentSnapshot: {
+      date: (parent: any) => {
+        if (parent.date instanceof Date) {
+          return parent.date.toISOString();
+        }
+        if (typeof parent.date === 'number') {
+          return new Date(parent.date).toISOString();
+        }
+        return parent.date;
+      }
+    },
 };
 

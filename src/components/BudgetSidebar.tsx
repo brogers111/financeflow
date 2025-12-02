@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation } from '@apollo/client';
+import Image from 'next/image';
 import { TOGGLE_PIN_BUDGET, DELETE_BUDGET_PERIOD } from '@/lib/graphql/budget-queries';
 
 interface Budget {
@@ -68,8 +69,8 @@ export default function BudgetSidebar({
       <div
         onClick={() => onSelectBudget(budget.id)}
         className={`
-          p-3 mx-2 mb-2 rounded-lg cursor-pointer transition-colors
-          ${isSelected ? 'bg-[#282427] text-[#EEEBD9]' : 'bg-transparent text-[#282427] hover:bg-[#d7d5c5]'}
+          py-2 px-3 mb-2 rounded-lg cursor-pointer transition-colors border border-[#EEEBD9]
+          ${isSelected ? 'text-[#282427] bg-[#EEEBD9]' : 'bg-transparent text-[#EEEBD9] hover:bg-[#3a3537]'}
         `}
       >
         <div className="flex items-start justify-between mb-2">
@@ -82,7 +83,19 @@ export default function BudgetSidebar({
               className="text-xs hover:scale-110 transition-transform"
               title={budget.isPinned ? 'Unpin' : 'Pin'}
             >
-              {budget.isPinned ? '📌' : '📍'}
+              {budget.isPinned ? (
+                isSelected ? (
+                  <Image className='cursor-pointer' src="/pinned-dark.svg" alt="Unpin" width={16} height={16} />
+                ) : (
+                  <Image className='cursor-pointer' src="/pinned.svg" alt="Unpin" width={16} height={16} />
+                )
+              ) : (
+                isSelected ? (
+                  <Image className='cursor-pointer' src="/pin-dark.svg" alt="Pin" width={16} height={16} />
+                ) : (
+                  <Image className='cursor-pointer' src="/pin.svg" alt="Pin" width={16} height={16} />
+                )
+              )}
             </button>
             <button
               onClick={(e) => {
@@ -95,7 +108,11 @@ export default function BudgetSidebar({
               className="text-xs hover:scale-110 transition-transform"
               title="Delete"
             >
-              🗑️
+              {isSelected ? (
+                <Image className='cursor-pointer ml-2' src="/trash-dark.svg" alt="Delete" width={16} height={16} />
+              ) : (
+                <Image className='cursor-pointer ml-2' src="/trash-light.svg" alt="Delete" width={16} height={16} />
+              )}
             </button>
           </div>
         </div>
@@ -119,24 +136,21 @@ export default function BudgetSidebar({
   };
 
   return (
-    <div className="w-80 h-full bg-[#EEEBD9] border-r-2 border-[#282427] flex flex-col">
+    <div className="w-80 bg-[#282427] flex flex-col mr-4 my-6">
       {/* Header */}
-      <div className="p-4 border-b-2 border-[#282427]">
-        <h2 className="text-xl font-bold text-[#282427] mb-3">Budgets</h2>
-        <button
-          onClick={onCreateNew}
-          className="w-full bg-[#282427] text-[#EEEBD9] py-2 rounded-lg font-semibold cursor-pointer hover:bg-[#3a3537] transition-colors"
-        >
-          + New Budget
-        </button>
-      </div>
+      <button
+        onClick={onCreateNew}
+        className="w-full py-2 mb-4 bg-[#282427] text-[#EEEBD9] border-2 border-[#EEEBD9] rounded-lg font-semibold cursor-pointer hover:bg-[#3a3537] transition-colors"
+      >
+        + New Budget
+      </button>
 
       {/* Scrollable Budget List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto rounded-lg">
         {/* Pinned Section */}
         {pinnedBudgets.length > 0 && (
           <div className="py-3 border-b-2 border-[#282427]">
-            <p className="px-4 text-xs font-semibold text-gray-600 mb-2">PINNED</p>
+            <p className="px-2 text-xs font-semibold text-[#EEEBD9] mb-2">PINNED</p>
             {pinnedBudgets.map(budget => (
               <BudgetCard key={budget.id} budget={budget} />
             ))}
@@ -145,15 +159,15 @@ export default function BudgetSidebar({
 
         {/* All Budgets Section */}
         <div className="py-3">
-          <p className="px-4 text-xs font-semibold text-gray-600 mb-2">ALL BUDGETS</p>
+          <p className="px-2 text-xs font-semibold text-[#EEEBD9] mb-2">ALL BUDGETS</p>
           {unpinnedBudgets.map(budget => (
             <BudgetCard key={budget.id} budget={budget} />
           ))}
         </div>
 
         {budgets.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            <p className="text-sm">No budgets yet</p>
+          <div className="text-center py-8 text-[#EEEBD9]">
+            <p className="text-sm">No budgets yet...</p>
           </div>
         )}
       </div>

@@ -30,7 +30,7 @@ export default function BudgetPage() {
   }
 
   return (
-    <div className="flex h-screen bg-[#282427]">
+    <div className="flex h-screen">
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
         {selectedBudget ? (
@@ -38,12 +38,12 @@ export default function BudgetPage() {
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <p className="text-xl text-[#EEEBD9] mb-4">No budgets yet</p>
+              <p className="text-xl text-[#EEEBD9] mb-4">Create Your First Budget</p>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="bg-[#EEEBD9] text-[#282427] px-6 py-3 rounded-lg font-semibold cursor-pointer hover:bg-[#d7d5c5]"
+                className="bg-[#EEEBD9] text-[#282427] w-full px-6 py-3 rounded-lg font-semibold cursor-pointer hover:bg-[#d7d5c5]"
               >
-                Create Your First Budget
+                + New Budget
               </button>
             </div>
           </div>
