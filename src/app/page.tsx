@@ -233,6 +233,11 @@ export default function Dashboard() {
     const start = new Date(netWorthDateRange.startDate);
     const end = new Date(netWorthDateRange.endDate);
     
+    // UPDATED: Include current month in the range
+    const now = new Date();
+    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const endDate = currentMonthEnd > end ? currentMonthEnd : end;
+    
     const monthlyBalances: Record<string, { 
       personalCash: number; 
       personalSavings: number;
@@ -241,7 +246,8 @@ export default function Dashboard() {
       hasData: boolean; 
     }> = {};
     
-    for (let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
+    // Initialize all months from start to current month
+    for (let d = new Date(start); d <= endDate; d.setMonth(d.getMonth() + 1)) {
       const key = d.toISOString().slice(0, 7);
       monthlyBalances[key] = {
         personalCash: 0,
@@ -254,10 +260,12 @@ export default function Dashboard() {
 
     const sortedMonths = Object.keys(monthlyBalances).sort();
 
+    // Process each month
     for (const monthKey of sortedMonths) {
       const [year, monthNum] = monthKey.split('-').map(Number);
-      const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
+      const monthEnd = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59, 999));
 
+      // For each account, find most recent balance snapshot at or before month-end
       for (const account of accounts) {
         const snapshots = account.balanceHistory || [];
         
@@ -331,6 +339,7 @@ export default function Dashboard() {
         }
       }
 
+      // Get investment values
       for (const portfolio of investments) {
         const snapshots = portfolio.valueHistory || [];
         
@@ -388,13 +397,19 @@ export default function Dashboard() {
       }
     }
 
+    // Forward-fill missing months
     for (let i = 1; i < sortedMonths.length; i++) {
       const currentMonth = sortedMonths[i];
       const prevMonth = sortedMonths[i - 1];
       
+      // If current month has NO data at all, copy everything from previous month
       if (!monthlyBalances[currentMonth].hasData) {
-        monthlyBalances[currentMonth] = { ...monthlyBalances[prevMonth], hasData: true };
+        monthlyBalances[currentMonth] = { 
+          ...monthlyBalances[prevMonth], 
+          hasData: true // Mark as having data so it shows up
+        };
       } else {
+        // If current month has SOME data, forward-fill individual zero components
         if (monthlyBalances[currentMonth].personalCash === 0 && monthlyBalances[prevMonth].personalCash !== 0) {
           monthlyBalances[currentMonth].personalCash = monthlyBalances[prevMonth].personalCash;
         }
@@ -410,6 +425,7 @@ export default function Dashboard() {
       }
     }
 
+    // Build chart data - include all months with data
     const chartData = sortedMonths
       .filter(month => monthlyBalances[month].hasData)
       .map(month => {
@@ -460,11 +476,13 @@ export default function Dashboard() {
   if (categoryTimeframe === 'month') {
     const monthlyStats = monthlyData?.monthlyStats || { byCategory: [], expenses: 0 };
     totalSpend = monthlyStats.expenses || 0;
-    categoryData = (monthlyStats.byCategory || []).map((item: any) => ({
-      name: item.category.name,
-      value: categoryViewMode === 'percentage' ? item.percentage : item.total,
-      color: item.category.color
-    }));
+    categoryData = (monthlyStats.byCategory || [])
+      .map((item: any) => ({
+        name: item.category.name,
+        value: categoryViewMode === 'percentage' ? item.percentage : item.total,
+        color: item.category.color
+      }))
+      .sort((a, b) => b.value - a.value); // SORT DESCENDING
   } else {
     const transactions = yearlyTransactions?.transactions || [];
     const expenseTransactions = transactions.filter((t: any) => t.type === 'EXPENSE');
@@ -491,7 +509,7 @@ export default function Dashboard() {
         ? (item.total / (totalSpend || 1)) * 100
         : item.total,
       color: item.color
-    })).sort((a, b) => b.value - a.value);
+    })).sort((a, b) => b.value - a.value); // ALREADY SORTED
   }
 
   const monthNames = [
@@ -817,8 +835,23 @@ export default function Dashboard() {
                 type="monotone"
                 dataKey="balance"
                 stroke="#000"
-                strokeWidth={2}
-                dot={{ fill: '#000', r: 1.5 }}
+                strokeWidth={1}
+                dot={(props) => {
+                  const { cx, cy, value } = props;
+
+                  // Choose color based on balance value
+                  const color = value >= 0 ? "#00B177" : "#EF3A3F";
+
+                  return (
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={3}
+                      stroke="#000"
+                      fill={color}
+                    />
+                  );
+                }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -965,7 +998,7 @@ export default function Dashboard() {
 
               {/* Legend */}
               <div className="mt-4 space-y-1">
-                {categoryData.slice(0, 5).map((item: any, index: number) => (
+                {categoryData.map((item: any, index: number) => (
                   <div key={index} className="flex justify-between items-center text-xs">
                     <div className="flex items-center gap-2">
                       <div
