@@ -165,7 +165,7 @@ export default function CreateBudgetModal({ onClose, onCreated }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#EEEBD9] rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#EEEBD9] rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-4">
         {/* Step 1: Date Selection */}
         {step === 'dates' && !showOverlapWarning && (
           <>

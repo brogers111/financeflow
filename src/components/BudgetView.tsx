@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
   CREATE_BUDGET_LINE_ITEM,
@@ -66,6 +66,7 @@ export default function BudgetView({ budget, onRefresh }: Props) {
   const [showAddLineItem, setShowAddLineItem] = useState(false);
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; description: string } | null>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   const { data: categoriesData } = useQuery(GET_CATEGORIES);
   const categories = categoriesData?.categories || [];
@@ -73,6 +74,17 @@ export default function BudgetView({ budget, onRefresh }: Props) {
   const [createLineItem] = useMutation(CREATE_BUDGET_LINE_ITEM);
   const [updateLineItem] = useMutation(UPDATE_BUDGET_LINE_ITEM);
   const [deleteLineItem] = useMutation(DELETE_BUDGET_LINE_ITEM);
+
+  useEffect(() => {
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
 
   const dateRange = useMemo(() => {
     const start = new Date(budget.startDate);
@@ -311,43 +323,45 @@ export default function BudgetView({ budget, onRefresh }: Props) {
   // MAIN RENDER
   // ========================================
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6 pb-24 md:pb-6">
       {/* HEADER */}
-      <div className="mb-2">
-        <h1 className="text-3xl font-bold text-[#EEEBD9] mb-2">Budget</h1>
-        <p className="text-lg text-[#EEEBD9]">{dateRange}</p>
+      <div className="mb-4 md:mb-2">
+        <h1 className="text-2xl md:text-3xl font-bold text-[#EEEBD9] mb-2">Budget</h1>
+        <p className="mt-6 md:mt-0 text-base md:text-lg text-[#EEEBD9]">{dateRange}</p>
       </div>
 
       {/* SUMMARY CARDS */}
-      <div className="grid grid-cols-3 gap-2 mb-2">
-        <div className="bg-[#EEEBD9] p-3 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Total Budgeted</p>
-          <p className="text-2xl font-bold">${budget.totalBudgeted.toLocaleString()}</p>
-        </div>
+      <div className="mb-4 md:mb-2 text-center md:text-left">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2 md:mb-0">
+          <div className="bg-[#EEEBD9] p-3 rounded-lg">
+            <p className="text-xs text-gray-500 mb-1">Total Budgeted</p>
+            <p className="text-2xl font-bold">${budget.totalBudgeted.toLocaleString()}</p>
+          </div>
 
-        <div className="bg-[#EEEBD9] p-3 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Total Actual</p>
-          <p className="text-2xl font-bold">${budget.totalActual.toLocaleString()}</p>
-        </div>
+          <div className="bg-[#EEEBD9] p-3 rounded-lg">
+            <p className="text-xs text-gray-500 mb-1">Total Actual</p>
+            <p className="text-2xl font-bold">${budget.totalActual.toLocaleString()}</p>
+          </div>
 
-        <div className="bg-[#EEEBD9] p-3 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Balance</p>
-          <p className={`text-2xl font-bold ${budget.totalBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {budget.totalBalance >= 0 ? '+' : ''}${budget.totalBalance.toLocaleString()}
-          </p>
+          <div className="bg-[#EEEBD9] p-3 rounded-lg col-span-2 md:col-span-1">
+            <p className="text-xs text-gray-500 mb-1">Balance</p>
+            <p className={`text-2xl font-bold ${budget.totalBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {budget.totalBalance >= 0 ? '+' : ''}${budget.totalBalance.toLocaleString()}
+            </p>
+          </div>
         </div>
       </div>
 
       {/* GRAPHS */}
-      <div className="grid grid-cols-3 gap-2 mb-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-2 mb-4 md:mb-2">
         {/* Graph 1 — Budget vs Actual */}
         <div className="bg-[#EEEBD9] rounded-lg p-3">
           <h3 className="text-md font-semibold mb-3">Budget vs Actual</h3>
 
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart 
+          <ResponsiveContainer width="100%" height={250} className="md:h-[200px]!">
+            <BarChart
               data={budgetVsActualData}
-              margin={{left: -25, right: 0, top: 0, bottom: 0}}
+              margin={{left: -25, right: 0, top: 0, bottom: isDesktop ? 50 : 0}}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#ddd" />
               <XAxis
@@ -362,7 +376,7 @@ export default function BudgetView({ budget, onRefresh }: Props) {
                   return (
                     <text
                       x={x}
-                      y={y + 15}
+                      y={y + 20}
                       textAnchor="middle"
                       fontSize={20}
                     >
@@ -383,8 +397,8 @@ export default function BudgetView({ budget, onRefresh }: Props) {
         <div className="bg-[#EEEBD9] rounded-lg p-3">
           <h3 className="text-md font-semibold mb-3">Over/Under Budget</h3>
 
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={overUnderData} layout="vertical" margin={{left: -8, right: 0, top: 0, bottom: 0}} >
+          <ResponsiveContainer width="100%" height={250} className="md:h-[200px]!">
+            <BarChart data={overUnderData} layout="vertical" margin={{left: -8, right: 0, top: 0, bottom: isDesktop ? 50 : 0}} >
               <CartesianGrid strokeDasharray="3 3" stroke="#ddd" />
               <XAxis type="number" tick={{ fontSize: 10 }} />
               <YAxis
@@ -476,7 +490,7 @@ export default function BudgetView({ budget, onRefresh }: Props) {
       </div>
 
       {/* ADD LINE ITEM BUTTON */}
-      <div className="flex justify-end mb-2">
+      <div className="flex justify-end mb-4 md:mb-2">
         <button
           onClick={() => setShowAddLineItem(true)}
           className="bg-[#282427] text-[#EEEBD9] px-4 py-2 border-2 border-[#EEEBD9] rounded-lg text-sm font-semibold cursor-pointer hover:bg-[#3a3537]"
@@ -485,10 +499,10 @@ export default function BudgetView({ budget, onRefresh }: Props) {
         </button>
       </div>
 
-      {/* LINE ITEMS TABLES - TWO COLUMNS */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* LINE ITEMS TABLES - ONE COLUMN ON MOBILE, TWO ON DESKTOP */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-2">
         {/* LEFT COLUMN */}
-        <div className="space-y-2">
+        <div className="space-y-4 md:space-y-2">
           {leftColumnCategories.map(({ category, items }) => (
             <CategoryTable
               key={category?.id || 'uncategorized'}
@@ -503,7 +517,7 @@ export default function BudgetView({ budget, onRefresh }: Props) {
         </div>
 
         {/* RIGHT COLUMN */}
-        <div className="space-y-2">
+        <div className="space-y-4 md:space-y-2">
           {rightColumnCategories.map(({ category, items }) => (
             <CategoryTable
               key={category?.id || 'uncategorized'}
@@ -578,39 +592,41 @@ function CategoryTable({
   onDelete
 }: CategoryTableProps) {
   return (
-    <div className="bg-[#EEEBD9] rounded-lg p-4">
+    <div className="bg-[#EEEBD9] rounded-lg p-3 md:p-4">
       {/* Category Header */}
-      <h3 className="text-md font-semibold mb-3 flex items-center gap-2">
-        {category?.icon && <span>{category.icon}</span>}
+      <h3 className="text-base md:text-md font-semibold mb-3 flex items-center gap-2">
+        {category?.icon && <span className="text-lg">{category.icon}</span>}
         <span>{category?.name || 'Uncategorized'}</span>
       </h3>
 
       {/* Table */}
-      <table className="w-full">
-        <thead>
-          <tr className="border-b-2 border-[#282427]">
-            <th className="w-8"></th>
-            <th className="text-left py-2 text-xs font-semibold">Description</th>
-            <th className="text-right py-2 text-xs font-semibold w-20">Budget</th>
-            <th className="text-right py-2 text-xs font-semibold w-20">Actual</th>
-            <th className="text-right py-2 text-xs font-semibold w-20">Balance</th>
-          </tr>
-        </thead>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b-2 border-[#282427]">
+              <th className="w-6 md:w-8"></th>
+              <th className="text-left py-2 text-xs font-semibold">Description</th>
+              <th className="text-right py-2 text-xs font-semibold w-16 md:w-20">Budget</th>
+              <th className="text-right py-2 text-xs font-semibold w-16 md:w-20">Actual</th>
+              <th className="text-right py-2 text-xs font-semibold w-16 md:w-20">Balance</th>
+            </tr>
+          </thead>
 
-        <tbody>
-          {items.map(item => (
-            <LineItemRow
-              key={item.id}
-              item={item}
-              isHovered={hoveredRow === item.id}
-              onMouseEnter={() => setHoveredRow(item.id)}
-              onMouseLeave={() => setHoveredRow(null)}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-            />
-          ))}
-        </tbody>
-      </table>
+          <tbody>
+            {items.map(item => (
+              <LineItemRow
+                key={item.id}
+                item={item}
+                isHovered={hoveredRow === item.id}
+                onMouseEnter={() => setHoveredRow(item.id)}
+                onMouseLeave={() => setHoveredRow(null)}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -794,7 +810,7 @@ function AddLineItemModal({ categories, onAdd, onClose }: any) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#EEEBD9] rounded-lg p-6 max-w-md w-full">
+      <div className="bg-[#EEEBD9] rounded-lg p-6 max-w-md w-full mx-4">
         <h3 className="text-xl font-bold mb-4">Add Line Item</h3>
 
         {error && (

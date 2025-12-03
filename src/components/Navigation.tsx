@@ -5,7 +5,11 @@ import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import Image from 'next/image';
 
-export default function Navigation() {
+interface NavigationProps {
+  onBudgetModalToggle?: () => void;
+}
+
+export default function Navigation({ onBudgetModalToggle }: NavigationProps = {}) {
   const pathname = usePathname();
   const { data: session } = useSession();
 
@@ -128,12 +132,12 @@ export default function Navigation() {
       </nav>
 
       {/* Mobile Navigation - Top Right Floating Actions */}
-      <nav className="md:hidden fixed top-4 right-4 bg-[#EEEBD9] px-2 rounded-3xl z-50 flex gap-2">
+      <nav className="md:hidden fixed top-4 right-4 bg-[#EEEBD9] px-2 rounded-xl z-50 flex gap-2">
         {secondaryNavItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className={`p-2 rounded-full flex justify-center items-center transition cursor-pointer border-2 ${
+            className={`p-1 m-1 rounded-lg flex justify-center items-center transition cursor-pointer border-2 ${
               pathname === item.href
                 ? 'border-gray-400'
                 : 'border-transparent active:border-gray-300'
@@ -143,11 +147,41 @@ export default function Navigation() {
             <Image
               src={item.icon}
               alt={item.label}
-              width={24}
-              height={24}
+              width={28}
+              height={28}
             />
           </Link>
         ))}
+        {/* Budget Modal Toggle - Only show on /budget page */}
+        {pathname === '/budget' && (
+          <button
+            onClick={() => {
+              if (onBudgetModalToggle) {
+                onBudgetModalToggle();
+              } else {
+                // Dispatch custom event for budget page to listen to
+                window.dispatchEvent(new CustomEvent('toggleBudgetModal'));
+              }
+            }}
+            className="p-2 rounded-full flex justify-center items-center transition cursor-pointer border-2 border-transparent active:border-gray-300"
+            title="Budget List"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        )}
       </nav>
     </>
   );

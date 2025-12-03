@@ -120,7 +120,7 @@ export default function ManualTransaction() {
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-[#EEEBD9] rounded-xl">
-      <h2 className="text-2xl font-bold mb-6">Upload Transaction Manually</h2>
+      <h2 className="text-2xl font-bold mb-6">Upload Manual Transaction</h2>
 
       {/* Success Message */}
       {success && (
@@ -145,7 +145,7 @@ export default function ManualTransaction() {
       {!success && (
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Transaction Type + Date Row */}
-          <div className="grid grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start">
             {/* Transaction Type Buttons */}
             <div>
               <label className="block text-md font-medium text-[#282427] mb-2">Transaction Type</label>

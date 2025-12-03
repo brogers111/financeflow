@@ -145,7 +145,7 @@ export default function AddCategory() {
             <label className="block text-md font-medium text-[#282427] mb-2">
               Icon (optional)
             </label>
-            <div className="grid grid-cols-10 gap-2 mb-2">
+            <div className="grid grid-cols-5 md:grid-cols-10 gap-2 mb-2">
               {PRESET_ICONS.map((presetIcon) => (
                 <button
                   key={presetIcon}

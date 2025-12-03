@@ -21,6 +21,8 @@ interface Props {
   onSelectBudget: (id: string) => void;
   onCreateNew: () => void;
   onRefresh: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export default function BudgetSidebar({
@@ -28,7 +30,9 @@ export default function BudgetSidebar({
   selectedBudgetId,
   onSelectBudget,
   onCreateNew,
-  onRefresh
+  onRefresh,
+  isOpen = false,
+  onClose
 }: Props) {
   const [togglePin] = useMutation(TOGGLE_PIN_BUDGET);
   const [deleteBudget, { loading: deleting }] = useMutation(DELETE_BUDGET_PERIOD);
@@ -135,47 +139,95 @@ export default function BudgetSidebar({
     );
   };
 
-  return (
-    <div className="w-80 bg-[#282427] flex flex-col mr-4 my-6">
-      {/* Header */}
-      <button
-        onClick={onCreateNew}
-        className="w-full py-2 mb-4 bg-[#282427] text-[#EEEBD9] border-2 border-[#EEEBD9] rounded-lg font-semibold cursor-pointer hover:bg-[#3a3537] transition-colors"
-      >
-        + New Budget
-      </button>
+  const sidebarContent = (
+    <div className="w-full md:w-80 bg-[#282427] flex flex-col h-full">
+      {/* Mobile Modal Header */}
+      {isOpen && onClose && (
+        <div className="md:hidden flex justify-between items-center p-4 border-b border-[#EEEBD9]">
+          <h2 className="text-xl font-bold text-[#EEEBD9]">Budget Periods</h2>
+          <button
+            onClick={onClose}
+            className="text-[#EEEBD9] hover:text-gray-300 transition"
+            title="Close"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      )}
 
-      {/* Scrollable Budget List */}
-      <div className="flex-1 overflow-y-auto rounded-lg">
-        {/* Pinned Section */}
-        {pinnedBudgets.length > 0 && (
-          <div className="py-3 border-b-2 border-[#282427]">
-            <p className="px-2 text-xs font-semibold text-[#EEEBD9] mb-2">PINNED</p>
-            {pinnedBudgets.map(budget => (
+      {/* Content */}
+      <div className="flex-1 flex flex-col overflow-hidden p-4 md:p-0">
+        {/* Header */}
+        <button
+          onClick={onCreateNew}
+          className="w-full py-2 mb-4 bg-[#282427] text-[#EEEBD9] border-2 border-[#EEEBD9] rounded-lg font-semibold cursor-pointer hover:bg-[#3a3537] transition-colors"
+        >
+          + New Budget
+        </button>
+
+        {/* Scrollable Budget List */}
+        <div className="flex-1 overflow-y-auto rounded-lg">
+          {/* Pinned Section */}
+          {pinnedBudgets.length > 0 && (
+            <div className="py-3 border-b-2 border-[#282427]">
+              <p className="px-2 text-xs font-semibold text-[#EEEBD9] mb-2">PINNED</p>
+              {pinnedBudgets.map(budget => (
+                <BudgetCard key={budget.id} budget={budget} />
+              ))}
+            </div>
+          )}
+
+          {/* All Budgets Section */}
+          <div className="py-3">
+            <p className="px-2 text-xs font-semibold text-[#EEEBD9] mb-2">ALL BUDGETS</p>
+            {unpinnedBudgets.map(budget => (
               <BudgetCard key={budget.id} budget={budget} />
             ))}
           </div>
-        )}
 
-        {/* All Budgets Section */}
-        <div className="py-3">
-          <p className="px-2 text-xs font-semibold text-[#EEEBD9] mb-2">ALL BUDGETS</p>
-          {unpinnedBudgets.map(budget => (
-            <BudgetCard key={budget.id} budget={budget} />
-          ))}
+          {budgets.length === 0 && (
+            <div className="text-center py-8 text-[#EEEBD9]">
+              <p className="text-sm">No budgets yet...</p>
+            </div>
+          )}
         </div>
+      </div>
+    </div>
+  );
 
-        {budgets.length === 0 && (
-          <div className="text-center py-8 text-[#EEEBD9]">
-            <p className="text-sm">No budgets yet...</p>
+  return (
+    <>
+      {/* Mobile Modal */}
+      {isOpen && (
+        <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex">
+          <div className="bg-[#282427] w-full overflow-hidden">
+            {sidebarContent}
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex md:flex-col mr-4 my-6">
+        {sidebarContent}
       </div>
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 min-w-sm max-w-md">
+          <div className="bg-white rounded-lg p-6 min-w-sm max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4 text-center">Confirm Budget Deletion:</h3>
             <p className="text-gray-600 mb-2 font-bold">
               {deleteConfirm.dateRange}
@@ -201,6 +253,6 @@ export default function BudgetSidebar({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

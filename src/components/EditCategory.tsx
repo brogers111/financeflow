@@ -144,7 +144,7 @@ export default function EditCategory() {
             <label className="block text-md font-medium text-[#282427] mb-2">
               Icon (optional)
             </label>
-            <div className="grid grid-cols-10 gap-2 mb-2">
+            <div className="grid grid-cols-5 md:grid-cols-10 gap-2 mb-2">
               {PRESET_ICONS.map((presetIcon) => (
                 <button
                   key={presetIcon}
@@ -188,7 +188,7 @@ export default function EditCategory() {
               disabled={updating || !name}
               className="flex-1 bg-[#282427] text-white py-2 px-4 rounded-lg cursor-pointer disabled:bg-[#d7d5c5] disabled:text-[#282427] disabled:cursor-not-allowed"
             >
-              {updating ? 'Updating...' : 'Update Category'}
+              {updating ? 'Updating...' : 'Update'}
             </button>
 
             <button
@@ -197,7 +197,7 @@ export default function EditCategory() {
               disabled={deleting}
               className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg cursor-pointer hover:bg-red-700 disabled:bg-gray-400"
             >
-              Delete Category
+              Delete
             </button>
           </div>
         </form>
@@ -206,7 +206,7 @@ export default function EditCategory() {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 min-w-sm max-w-md">
+          <div className="bg-white rounded-lg p-6 min-w-sm max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4 text-center">Confirm Category Deletion:</h3>
             <p className="text-gray-600 mb-2 font-bold">
               {icon} {name}

@@ -24,21 +24,24 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex justify-between items-center bg-[#fbfcfb] font-sour">
-      <div className='mx-32 text-3xl font-semibold text-center flex gap-4 flex-col items-center'>
+    <div className="min-h-screen w-full flex flex-col md:flex-row justify-center md:justify-between items-center bg-[#fbfcfb] font-sour p-4 md:p-0">
+      {/* Text and Image Section */}
+      <div className='mx-4 md:mx-32 text-2xl md:text-3xl font-semibold text-center flex gap-4 flex-col items-center mb-8 md:mb-0'>
         <p>They say money talks,</p>
         <p>but mine just waves goodbye...</p>
         <Image
           src="/login-photo.png"
           alt="Minion Waves Goodbye"
-          className='pt-12'
-          width={300}
-          height={300}
+          className='pt-8 md:pt-12'
+          width={250}
+          height={250}
         />
       </div>
-      <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full mx-40">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">FinanceFlow</h1>
+
+      {/* Login Section */}
+      <div className="bg-white p-6 md:p-8 rounded-lg shadow-2xl max-w-md w-full mx-4 md:mx-40">
+        <div className="text-center mb-6 md:mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">FinanceFlow</h1>
           <p className="text-gray-600">A Simpler Way to Track Your Money</p>
         </div>
 
