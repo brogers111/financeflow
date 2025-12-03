@@ -633,7 +633,7 @@ export default function Dashboard() {
 
   const NetWorthLegend = ({ payload }) => {
     return (
-      <div className="flex gap-4 justify-center">
+      <div className="flex flex-wrap gap-3 md:gap-4 justify-center">
         {payload.map((entry, index) => (
           <div key={index} className="flex items-center gap-2">
             {/* Circle color indicator */}
@@ -643,7 +643,7 @@ export default function Dashboard() {
             ></span>
 
             {/* Capitalized label */}
-            <span className="text-sm font-medium capitalize">
+            <span className="text-xs md:text-sm font-medium capitalize">
               {entry.value}
             </span>
           </div>
@@ -677,93 +677,161 @@ export default function Dashboard() {
   const unselectAllCategories = () => setExcludedCategoryIds(categories.map((c: any) => c.id));
 
   return (
-    <div className="flex gap-6 p-6 max-w-full bg-[#282427]">
+    <div className="flex flex-col md:flex-row gap-6 p-6 pb-24 md:pb-6 max-w-full bg-[#282427]">
       {/* Main Content Area */}
-      <div className="flex-1">
-        <h1 className="text-3xl font-bold text-[#EEEBD9] mb-6">Dashboard</h1>
+      <div className="flex-1 md:order-1 flex flex-col">
+        <h1 className="text-3xl font-bold text-[#EEEBD9] mb-6 order-1 md:order-1">Dashboard</h1>
 
         {/* Top Scorecards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          {/* Last Month Change */}
-          <div className="p-4 rounded-lg bg-[#EEEBD9]">
-            <p className="text-xs text-gray-500 mb-1">Last Month Change</p>
-            <p className={`text-2xl font-bold ${(stats.lastMonthChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {(stats.lastMonthChange || 0) >= 0 ? '+' : ''}
-              ${stats.lastMonthChange?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
-            </p>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-xs text-gray-500">
-                Income - Expenses
-              </span>
+        <div className="mb-6 order-2 md:order-2">
+          {/* Last Month Change - Full width on mobile, part of grid on desktop */}
+          <div className="p-4 rounded-lg bg-[#EEEBD9] mb-4 md:hidden">
+            {/* Mobile Layout */}
+            <div className="flex justify-between items-center">
+              <p className="text-lg font-semibold text-gray-700">Last Month Change</p>
+              <div className="text-right">
+                <p className={`text-xl font-bold ${(stats.lastMonthChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(stats.lastMonthChange || 0) >= 0 ? '+' : ''}
+                  ${stats.lastMonthChange?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Total Cash (Checking - Credit Cards) */}
-          <div className="bg-[#EEEBD9] p-4 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">Total Cash</p>
-            <p className="text-2xl font-bold text-gray-900">
-              ${stats.totalCash?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
-            </p>
-            <div className="flex items-center gap-1 mt-1">
-              {cashChange >= 0 ? (
-                <span className="text-green-600 text-xs">↑ {cashChange.toFixed(1)}%</span>
-              ) : (
-                <span className="text-red-600 text-xs">↓ {Math.abs(cashChange).toFixed(1)}%</span>
-              )}
+          {/* Desktop: 5 columns (all in one row), Mobile: 2x2 grid */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {/* Last Month Change - Desktop only */}
+            <div className="hidden md:block bg-[#EEEBD9] p-4 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">Last Month Change</p>
+              <p className={`text-2xl font-bold ${(stats.lastMonthChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {(stats.lastMonthChange || 0) >= 0 ? '+' : ''}
+                ${stats.lastMonthChange?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+              </p>
+              <div className="flex items-center gap-1 mt-1">
+                <span className="text-xs text-gray-500">
+                  Income - Expenses
+                </span>
+              </div>
             </div>
-          </div>
-
-          {/* Total Savings */}
-          <div className="bg-[#EEEBD9] p-4 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">Total Savings</p>
-            <p className="text-2xl font-bold text-[#35B79B]">
-              ${stats.totalSavings?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
-            </p>
-            <div className="flex items-center gap-1 mt-1">
-              {(savingsChange || 0) >= 0 ? (
-                <span className="text-green-600 text-xs">↑ {(savingsChange || 0).toFixed(1)}%</span>
-              ) : (
-                <span className="text-red-600 text-xs">↓ {Math.abs(savingsChange || 0).toFixed(1)}%</span>
-              )}
+            {/* Total Cash (Checking - Credit Cards) */}
+            <div className="bg-[#EEEBD9] p-4 rounded-lg">
+              <div className="hidden md:block">
+                <p className="text-xs text-gray-500 mb-1">Total Cash</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  ${stats.totalCash?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                </p>
+                <div className="flex items-center gap-1 mt-1">
+                  {cashChange >= 0 ? (
+                    <span className="text-green-600 text-xs">↑ {cashChange.toFixed(1)}%</span>
+                  ) : (
+                    <span className="text-red-600 text-xs">↓ {Math.abs(cashChange).toFixed(1)}%</span>
+                  )}
+                </div>
+              </div>
+              <div className="md:hidden flex flex-col text-center">
+                <p className="text-sm font-semibold text-gray-700 mb-2">Total Cash</p>
+                <p className="text-lg font-bold text-gray-900">
+                  ${stats.totalCash?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                </p>
+                {cashChange >= 0 ? (
+                  <span className="text-green-600 text-xs">↑ {cashChange.toFixed(1)}%</span>
+                ) : (
+                  <span className="text-red-600 text-xs">↓ {Math.abs(cashChange).toFixed(1)}%</span>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Total Investments */}
-          <div className="bg-[#EEEBD9] p-4 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">Investments</p>
-            <p className="text-2xl font-bold text-[#463A85]">
-              ${totalInvestments.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </p>
-            <div className="flex items-center gap-1 mt-1">
-              {investmentChange >= 0 ? (
-                <span className="text-green-600 text-xs">↑ {investmentChange.toFixed(1)}%</span>
-              ) : (
-                <span className="text-red-600 text-xs">↓ {Math.abs(investmentChange).toFixed(1)}%</span>
-              )}
+            {/* Total Savings */}
+            <div className="bg-[#EEEBD9] p-4 rounded-lg">
+              <div className="hidden md:block">
+                <p className="text-xs text-gray-500 mb-1">Total Savings</p>
+                <p className="text-2xl font-bold text-[#35B79B]">
+                  ${stats.totalSavings?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                </p>
+                <div className="flex items-center gap-1 mt-1">
+                  {(savingsChange || 0) >= 0 ? (
+                    <span className="text-green-600 text-xs">↑ {(savingsChange || 0).toFixed(1)}%</span>
+                  ) : (
+                    <span className="text-red-600 text-xs">↓ {Math.abs(savingsChange || 0).toFixed(1)}%</span>
+                  )}
+                </div>
+              </div>
+              <div className="md:hidden flex flex-col text-center">
+                <p className="text-sm font-semibold text-[#35B79B] mb-2">Total Savings</p>
+                <p className="text-lg font-bold text-[#35B79B]">
+                  ${stats.totalSavings?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                </p>
+                {(savingsChange || 0) >= 0 ? (
+                  <span className="text-green-600 text-xs">↑ {(savingsChange || 0).toFixed(1)}%</span>
+                ) : (
+                  <span className="text-red-600 text-xs">↓ {Math.abs(savingsChange || 0).toFixed(1)}%</span>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Net Worth */}
-          <div className="bg-[#EEEBD9] p-4 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">Net Worth</p>
-            <p className="text-2xl font-bold text-gray-900">
-              ${stats.netWorth?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
-            </p>
-            <div className="flex items-center gap-1 mt-1">
-              {netWorthChange >= 0 ? (
-                <span className="text-green-600 text-xs">↑ {netWorthChange.toFixed(1)}%</span>
-              ) : (
-                <span className="text-red-600 text-xs">↓ {Math.abs(netWorthChange).toFixed(1)}%</span>
-              )}
+            {/* Total Investments */}
+            <div className="bg-[#EEEBD9] p-4 rounded-lg">
+              <div className="hidden md:block">
+                <p className="text-xs text-gray-500 mb-1">Investments</p>
+                <p className="text-2xl font-bold text-[#463A85]">
+                  ${totalInvestments.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </p>
+                <div className="flex items-center gap-1 mt-1">
+                  {investmentChange >= 0 ? (
+                    <span className="text-green-600 text-xs">↑ {investmentChange.toFixed(1)}%</span>
+                  ) : (
+                    <span className="text-red-600 text-xs">↓ {Math.abs(investmentChange).toFixed(1)}%</span>
+                  )}
+                </div>
+              </div>
+              <div className="md:hidden flex flex-col text-center">
+                <p className="text-sm font-semibold text-[#463A85] mb-2">Investments</p>
+                <p className="text-lg font-bold text-[#463A85]">
+                  ${totalInvestments.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </p>
+                {investmentChange >= 0 ? (
+                  <span className="text-green-600 text-xs">↑ {investmentChange.toFixed(1)}%</span>
+                ) : (
+                  <span className="text-red-600 text-xs">↓ {Math.abs(investmentChange).toFixed(1)}%</span>
+                )}
+              </div>
+            </div>
+
+            {/* Net Worth */}
+            <div className="bg-[#EEEBD9] p-4 rounded-lg">
+              <div className="hidden md:block">
+                <p className="text-xs text-gray-500 mb-1">Net Worth</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  ${stats.netWorth?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                </p>
+                <div className="flex items-center gap-1 mt-1">
+                  {netWorthChange >= 0 ? (
+                    <span className="text-green-600 text-xs">↑ {netWorthChange.toFixed(1)}%</span>
+                  ) : (
+                    <span className="text-red-600 text-xs">↓ {Math.abs(netWorthChange).toFixed(1)}%</span>
+                  )}
+                </div>
+              </div>
+              <div className="md:hidden flex flex-col text-center">
+                <p className="text-sm font-semibold text-gray-700 mb-2">Net Worth</p>
+                <p className="text-lg font-bold text-gray-900">
+                  ${stats.netWorth?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                </p>
+                {netWorthChange >= 0 ? (
+                  <span className="text-green-600 text-xs">↑ {netWorthChange.toFixed(1)}%</span>
+                ) : (
+                  <span className="text-red-600 text-xs">↓ {Math.abs(netWorthChange).toFixed(1)}%</span>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Monthly Balance Flow Graph */}
-        <div className="bg-[#EEEBD9] rounded-lg p-4 mb-6">
-          <div className="flex justify-between items-center mb-4">
+        <div className="bg-[#EEEBD9] rounded-lg p-4 mb-6 order-5 md:order-3">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
             <h2 className="text-lg font-semibold">Monthly Balance Flow</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 w-full md:w-auto">
               {/* Date Selector */}
               <select
                 value={`${flowSelectedYear}-${flowSelectedMonth}`}
@@ -772,7 +840,7 @@ export default function Dashboard() {
                   setFlowSelectedYear(year);
                   setFlowSelectedMonth(month);
                 }}
-                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 focus:outline-none focus:ring-0"
+                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 focus:outline-none focus:ring-0 flex-1 md:flex-initial"
               >
                 {Array.from({ length: availableMonthsBack }, (_, i) => {
                   const d = new Date();
@@ -789,7 +857,7 @@ export default function Dashboard() {
               <select
                 value={flowMonthsToShow}
                 onChange={(e) => setFlowMonthsToShow(parseInt(e.target.value, 10))}
-                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 focus:outline-none focus:ring-0"
+                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 focus:outline-none focus:ring-0 flex-1 md:flex-initial"
               >
                 <option value={1}>1 Month</option>
                 <option value={3} disabled={availableMonthsBack < 3}>3 Months</option>
@@ -799,18 +867,18 @@ export default function Dashboard() {
                 <option value={60} disabled={availableMonthsBack < 60}>60 Months</option>
               </select>
 
-              {/* Account Filter */}
+              {/* Account Filter - Hide on Mobile */}
               <button
                 onClick={() => setShowAccountModal(!showAccountModal)}
-                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 focus:outline-none focus:ring-0"
+                className="hidden md:block px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 focus:outline-none focus:ring-0"
               >
                 Accounts {excludedAccountIds.length > 0 && `(-${excludedAccountIds.length})`}
               </button>
 
-              {/* Category Filter */}
+              {/* Category Filter - Hide on Mobile */}
               <button
                 onClick={() => setShowCategoryModal(!showCategoryModal)}
-                className="px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 focus:outline-none focus:ring-0"
+                className="hidden md:block px-3 py-1 text-sm rounded cursor-pointer border border-gray-300 focus:outline-none focus:ring-0"
               >
                 Categories {excludedCategoryIds.length > 0 && `(-${excludedCategoryIds.length})`}
               </button>
@@ -857,7 +925,7 @@ export default function Dashboard() {
         </div>
 
         {/* Net Worth History Graph */}
-        <div className="bg-[#EEEBD9] rounded-lg p-4">
+        <div className="bg-[#EEEBD9] rounded-lg p-4 order-6 md:order-4">
           <div className="mb-4">
             <h2 className="text-lg font-semibold">Net Worth History</h2>
           </div>
@@ -865,10 +933,10 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={netWorthHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ddd" />
-                <XAxis dataKey="date" stroke="#666" />
+                <XAxis dataKey="date" stroke="#666" className="text-xs md:text-sm" />
                 <YAxis stroke="#666" />
                 <Tooltip content={<NetWorthTooltip />} cursor={false} />
-                <Legend content={<NetWorthLegend />} />
+                <Legend content={<NetWorthLegend />} wrapperStyle={{ paddingTop: '10px' }} />
 
                 {/* Personal Cash */}
                 <Area
@@ -925,7 +993,7 @@ export default function Dashboard() {
       </div>
 
       {/* Right Sidebar */}
-      <div className="w-80 space-y-6 mt-15">
+      <div className="w-full md:w-80 space-y-6 md:mt-15 order-3 md:order-2">
         {/* Accounts Section */}
         <div className="bg-[#EEEBD9] rounded-lg">
           <div className="px-4 py-3 border-b-2 border-gray-700">
@@ -933,11 +1001,13 @@ export default function Dashboard() {
           </div>
           <div className="divide-y divide-gray-700">
             {accounts.map((account: any) => (
-              <div key={account.id} className="px-4 py-2 flex justify-between items-center">
-                <p className="text-sm text-gray-700">{account.name}</p>
-                <p className={`text-sm font-semibold ${account.balance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                  ${Number(account.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                </p>
+              <div key={account.id} className="px-4 py-2">
+                <div className="flex flex-wrap justify-between items-center gap-1">
+                  <p className="text-sm text-gray-700 break-words max-w-[70%] md:max-w-none">{account.name}</p>
+                  <p className={`text-sm font-semibold whitespace-nowrap ${account.balance >= 0 ? 'text-gray-900' : 'text-red-600'} md:ml-auto`}>
+                    ${Number(account.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
@@ -950,11 +1020,13 @@ export default function Dashboard() {
           </div>
           <div className="divide-y divide-gray-700">
             {investments.map((portfolio: any) => (
-              <div key={portfolio.id} className="px-4 py-2 flex justify-between items-center">
-                <p className="text-sm text-gray-700">{portfolio.name}</p>
-                <p className="text-sm font-semibold text-gray-900">
-                  ${Number(portfolio.currentValue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                </p>
+              <div key={portfolio.id} className="px-4 py-2">
+                <div className="flex flex-wrap justify-between items-center gap-1">
+                  <p className="text-sm text-gray-700 wrap-break-words max-w-[70%] md:max-w-none">{portfolio.name}</p>
+                  <p className="text-sm font-semibold text-gray-900 whitespace-nowrap md:ml-auto">
+                    ${Number(portfolio.currentValue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
               </div>
             ))}
           </div>

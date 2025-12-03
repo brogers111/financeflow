@@ -38,6 +38,9 @@ export default function TransactionsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; description: string } | null>(null);
+  const [swipedRow, setSwipedRow] = useState<string | null>(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   const { data: transactionsData, loading, refetch } = useQuery(GET_TRANSACTIONS);
   const { data: categoriesData } = useQuery(GET_CATEGORIES);
@@ -100,9 +103,35 @@ export default function TransactionsPage() {
       });
 
       setDeleteConfirm(null);
+      setSwipedRow(null);
       await refetch();
     } catch(error) {
       console.error('Delete error:', error);
+    }
+  };
+
+  // Swipe handlers for mobile
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = (transactionId: string) => {
+    if (!touchStart || !touchEnd) return;
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+
+    if (isLeftSwipe) {
+      setSwipedRow(transactionId);
+    } else {
+      setSwipedRow(null);
     }
   };
 
@@ -120,11 +149,35 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-6 pb-24 md:pb-6">
+      {/* Mobile Header */}
+      <div className="md:hidden mb-2">
+        <h1 className="text-3xl font-bold text-[#EEEBD9] mb-4">Transactions</h1>
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={handlePreviousMonth}
+            className="p-2"
+          >
+            <Image src="/chevron-left.svg" alt="Previous Month" width={24} height={24} />
+          </button>
+          <span className="text-lg font-medium min-w-[180px] text-center text-[#EEEBD9]">
+            {monthNames[selectedMonth]} {selectedYear}
+          </span>
+          <button
+            onClick={handleNextMonth}
+            className="p-2"
+            disabled={selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear()}
+          >
+            <Image src="/chevron-right.svg" alt="Next Month" width={24} height={24} />
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop Header */}
+      <div className="hidden md:flex justify-between items-center mb-6">
         {/* Left: Title + Month Navigation */}
         <h1 className="text-3xl font-bold text-[#EEEBD9]">Transactions</h1>
-        
+
         <div className="flex items-center gap-2">
           <button
             onClick={handlePreviousMonth}
@@ -144,7 +197,7 @@ export default function TransactionsPage() {
           </button>
         </div>
 
-        {/* Right: Stats */}
+        {/* Right: Stats - Desktop only */}
         <div className="flex gap-4">
           <p className="px-3 py-2 text-md border-2 border-[#EEEBD9] rounded-md text-[#EEEBD9] font-semibold">
             Total Transactions: {filteredTransactions.length}
@@ -159,12 +212,11 @@ export default function TransactionsPage() {
               .reduce((sum, t) => sum + t.amount, 0)
               .toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
           </p>
+        </div>
       </div>
 
-      </div>
-
-      {/* Transactions Table */}
-      <div className="bg-[#EEEBD9] rounded-lg shadow overflow-hidden">
+      {/* Transactions Table - Desktop */}
+      <div className="hidden md:block bg-[#EEEBD9] rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-[#282427]">
             <thead className="bg-[#EEEBD9]">
@@ -319,7 +371,136 @@ export default function TransactionsPage() {
           </div>
         )}
       </div>
-            {/* Delete Confirmation Modal */}
+
+      {/* Transactions List - Mobile */}
+      <div className="md:hidden bg-[#EEEBD9] rounded-lg shadow overflow-hidden">
+        {filteredTransactions.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            No transactions found for {monthNames[selectedMonth]} {selectedYear}
+          </div>
+        ) : (
+          <div className="divide-y divide-[#282427]">
+            {filteredTransactions.map((transaction) => {
+              const isEditing = editingTransaction === transaction.id;
+              const isSwiped = swipedRow === transaction.id;
+
+              return (
+                <div
+                  key={transaction.id}
+                  className="relative overflow-hidden"
+                  onTouchStart={onTouchStart}
+                  onTouchMove={onTouchMove}
+                  onTouchEnd={() => onTouchEnd(transaction.id)}
+                >
+                  {/* Delete button revealed on swipe */}
+                  {isSwiped && (
+                    <div className="absolute right-0 top-0 bottom-0 bg-red-600 flex items-center justify-center px-4">
+                      <button
+                        onClick={() => setDeleteConfirm({ id: transaction.id, description: transaction.description })}
+                        className="text-white font-semibold"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Transaction content */}
+                  <div
+                    className={`bg-[#EEEBD9] px-4 py-3 transition-transform duration-200 ${
+                      isSwiped ? '-translate-x-20' : 'translate-x-0'
+                    }`}
+                  >
+                    {/* Category */}
+                    <div className="flex justify-between mb-2">
+                      <span className="text-xs text-gray-600">
+                        {formatDateLocal(transaction.date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </span>
+                      {isEditing ? (
+                        <select
+                          value={selectedCategory || transaction.category?.id || ''}
+                          onChange={(e) => handleCategoryChange(transaction.id, e.target.value)}
+                          className="text-xs border border-gray-300 rounded-full px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#282427] cursor-pointer"
+                          autoFocus
+                        >
+                          <option value="">Select...</option>
+                          {transaction.type === 'TRANSFER' ? (
+                            <>
+                              {categories
+                                .filter((c: any) => c.type === 'TRANSFER')
+                                .map((category: any) => (
+                                  <option key={category.id} value={category.id}>
+                                    {category.icon} {category.name}
+                                  </option>
+                                ))}
+                              {categories.filter((c: any) => c.type === 'TRANSFER').length === 0 && (
+                                <>
+                                  {categories
+                                    .filter((c: any) => c.type === 'EXPENSE')
+                                    .map((category: any) => (
+                                      <option key={category.id} value={category.id}>
+                                        {category.icon} {category.name}
+                                      </option>
+                                    ))}
+                                  {categories
+                                    .filter((c: any) => c.type === 'INCOME')
+                                    .map((category: any) => (
+                                      <option key={category.id} value={category.id}>
+                                        {category.icon} {category.name}
+                                      </option>
+                                    ))}
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            categories
+                              .filter((c: any) => c.type === transaction.type)
+                              .map((category: any) => (
+                                <option key={category.id} value={category.id}>
+                                  {category.icon} {category.name}
+                                </option>
+                              ))
+                          )}
+                        </select>
+                      ) : transaction.category ? (
+                        <span
+                          onClick={() => setEditingTransaction(transaction.id)}
+                          className="inline-flex items-center px-2 py-1 rounded-full text-white text-xs font-medium cursor-pointer"
+                          style={{ backgroundColor: transaction.category.color }}
+                        >
+                          {transaction.category.name}
+                        </span>
+                      ) : (
+                        <span
+                          onClick={() => setEditingTransaction(transaction.id)}
+                          className="text-[#282427] border border-[#282427] px-2 py-1 rounded-full text-xs cursor-pointer"
+                        >
+                          Uncategorized
+                        </span>
+                      )}
+                    </div>
+                    {/* Top row: Date and Amount */}
+                    <div className="flex justify-between items-start gap-10">
+                      {/* Description */}
+                      <div className="text-md text-[#282427] font-semibold truncate">
+                        {transaction.description}
+                      </div>
+                      {/* Amount */}
+                      <span className={`text-lg font-bold ${transaction.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {transaction.amount < 0 ? '-' : '+'}${Math.abs(transaction.amount).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 min-w-sm max-w-md">

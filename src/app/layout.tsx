@@ -38,9 +38,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${sourGummy.variable} ${outfit.variable} font-outfit antialiased bg-[#282427]`}>
         <Providers>
-          <div className="flex">
+          <div className="flex flex-col md:flex-row">
             <ConditionalNavigation />
-            <main className="flex-1 min-h-screen">
+            <main className="flex-1 min-h-screen w-full md:w-auto">
               {children}
             </main>
           </div>

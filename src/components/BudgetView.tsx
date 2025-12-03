@@ -94,6 +94,7 @@ export default function BudgetView({ budget, onRefresh }: Props) {
       budgeted: number;
       actual: number;
       color: string;
+      icon: string; // ADD THIS
     }> = {};
 
     budget.lineItems.forEach(item => {
@@ -105,7 +106,8 @@ export default function BudgetView({ budget, onRefresh }: Props) {
           category: categoryName,
           budgeted: 0,
           actual: 0,
-          color: item.category?.color || '#666'
+          color: item.category?.color || '#666',
+          icon: item.category?.icon || '📦' // ADD THIS
         };
       }
       
@@ -121,6 +123,7 @@ export default function BudgetView({ budget, onRefresh }: Props) {
       category: string;
       balance: number;
       color: string;
+      icon: string; // ADD THIS
     }> = {};
 
     budget.lineItems.forEach(item => {
@@ -131,7 +134,8 @@ export default function BudgetView({ budget, onRefresh }: Props) {
         categoryTotals[key] = {
           category: categoryName,
           balance: 0,
-          color: item.category?.color || '#666'
+          color: item.category?.color || '#666',
+          icon: item.category?.icon || '📦' // ADD THIS
         };
       }
       
@@ -341,19 +345,36 @@ export default function BudgetView({ budget, onRefresh }: Props) {
           <h3 className="text-md font-semibold mb-3">Budget vs Actual</h3>
 
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={budgetVsActualData}>
+            <BarChart 
+              data={budgetVsActualData}
+              margin={{left: -25, right: 0, top: 0, bottom: 0}}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#ddd" />
               <XAxis
                 dataKey="category"
-                tick={{ fontSize: 10 }}
-                angle={-45}
-                textAnchor="end"
-                height={80}
+                height={30}
+                interval={0}
+                tick={({ x, y, index }) => {
+                  const categoryData = budgetVsActualData[index];
+                  
+                  if (!categoryData) return null;
+
+                  return (
+                    <text
+                      x={x}
+                      y={y + 15}
+                      textAnchor="middle"
+                      fontSize={20}
+                    >
+                      {categoryData.icon}
+                    </text>
+                  );
+                }}
               />
               <YAxis tick={{ fontSize: 10 }} />
               <Tooltip content={<BudgetVsActualTooltip />} />
-              <Bar dataKey="budgeted" fill="#4ECDC4" />
-              <Bar dataKey="actual" fill="#FF6B6B" />
+              <Bar dataKey="budgeted" fill="#4ECDC4" className='cursor-pointer' />
+              <Bar dataKey="actual" fill="#FF6B6B" className='cursor-pointer' />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -363,16 +384,39 @@ export default function BudgetView({ budget, onRefresh }: Props) {
           <h3 className="text-md font-semibold mb-3">Over/Under Budget</h3>
 
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={overUnderData} layout="vertical">
+            <BarChart data={overUnderData} layout="vertical" margin={{left: -8, right: 0, top: 0, bottom: 0}} >
               <CartesianGrid strokeDasharray="3 3" stroke="#ddd" />
               <XAxis type="number" tick={{ fontSize: 10 }} />
-              <YAxis type="category" dataKey="category" tick={{ fontSize: 10 }} width={100} />
+              <YAxis
+                type="category"
+                dataKey="category"
+                width={50}
+                tick={({ x, y, payload }) => {
+                  const categoryData = overUnderData.find(
+                    item => item.category === payload.value
+                  );
+                  
+                  if (!categoryData) return null;
+
+                  return (
+                    <text
+                      x={x - 10}
+                      y={y + 5}
+                      textAnchor="end"
+                      fontSize={20}
+                    >
+                      {categoryData.icon}
+                    </text>
+                  );
+                }}
+              />
               <Tooltip content={<OverUnderTooltip />} />
               <Bar dataKey="balance">
                 {overUnderData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={entry.balance >= 0 ? '#10B981' : '#EF4444'}
+                    className='cursor-pointer'
                   />
                 ))}
               </Bar>
@@ -390,14 +434,19 @@ export default function BudgetView({ budget, onRefresh }: Props) {
                 data={spendDistributionData}
                 cx="50%"
                 cy="50%"
-                innerRadius={40}
-                outerRadius={70}
+                labelLine={false}
+                innerRadius={50}
+                outerRadius={80}
+                cornerRadius={5}
+                fill="#8884d8"
                 dataKey="value"
+                className='cursor-pointer'
               >
                 {spendDistributionData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={entry.color || COLORS[index % COLORS.length]}
+                    stroke='#EEEBD9'
                   />
                 ))}
               </Pie>
