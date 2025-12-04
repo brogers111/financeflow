@@ -22,10 +22,21 @@ export const metadata: Metadata = {
   title: 'FinanceFlow',
   description: 'Personal finance tracker',
   manifest: '/manifest.json',
+  themeColor: '#4F46E5',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'FinanceFlow'
+  },
+  icons: {
+    icon: '/icon-192x192.png',
+    apple: '/icon-192x192.png'
+  },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false
   }
 };
 

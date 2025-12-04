@@ -119,9 +119,9 @@ export default function Dashboard() {
         return new Date(Number(t.date));
       }
       return new Date(t.date);
-    }).filter(d => !isNaN(d.getTime()));
+    }).filter((d: Date) => !isNaN(d.getTime()));
     
-    return dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : new Date();
+    return dates.length > 0 ? new Date(Math.min(...dates.map((d: Date) => d.getTime()))) : new Date();
   }, [allTransactionsData]);
 
   const availableMonthsBack = useMemo(() => {
@@ -482,7 +482,7 @@ export default function Dashboard() {
         value: categoryViewMode === 'percentage' ? item.percentage : item.total,
         color: item.category.color
       }))
-      .sort((a, b) => b.value - a.value); // SORT DESCENDING
+      .sort((a: any, b: any) => b.value - a.value); // SORT DESCENDING
   } else {
     const transactions = yearlyTransactions?.transactions || [];
     const expenseTransactions = transactions.filter((t: any) => t.type === 'EXPENSE');
@@ -631,10 +631,10 @@ export default function Dashboard() {
     );
   };
 
-  const NetWorthLegend = ({ payload }) => {
+  const NetWorthLegend = ({ payload }: any) => {
     return (
       <div className="flex flex-wrap gap-3 md:gap-4 justify-center">
-        {payload.map((entry, index) => (
+        {payload.map((entry: any, index: number) => (
           <div key={index} className="flex items-center gap-2">
             {/* Circle color indicator */}
             <span

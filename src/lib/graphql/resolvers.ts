@@ -1,6 +1,10 @@
-import { PrismaClient, AccountType, AccountCategory, TransactionType, Category, Prisma } from '@prisma/client';
+import { PrismaClient, AccountType, AccountCategory, TransactionType, Category, Prisma, User } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+interface Context {
+  user: User | null;
+}
 
 interface CreateAccountInput {
   name: string;
@@ -1126,12 +1130,17 @@ export const resolvers = {
     },
 
     // Record paycheck
-    recordPaycheck: async (_parent: unknown, { input }: { input: PaycheckInput }) => {
+    recordPaycheck: async (_parent: unknown, { input }: { input: PaycheckInput }, context: Context) => {
+      if (!context.user) {
+        throw new Error('Not authenticated');
+      }
+
       const paycheck = await prisma.paycheck.create({
         data: {
           date: new Date(input.date),
           amount: input.amount,
-          accountId: input.accountId
+          accountId: input.accountId,
+          userId: context.user.id
         }
       });
 

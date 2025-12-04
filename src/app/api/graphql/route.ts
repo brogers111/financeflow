@@ -5,6 +5,7 @@ import { resolvers } from '@/lib/graphql/resolvers';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { NextRequest } from 'next/server';
 
 const server = new ApolloServer({
   typeDefs,
@@ -14,7 +15,7 @@ const server = new ApolloServer({
 const handler = startServerAndCreateNextHandler(server, {
   context: async (req) => {
     const session = await getServerSession(authOptions);
-    
+
     // Get the user from database based on session
     let user = null;
     if (session?.user?.email) {
@@ -22,9 +23,15 @@ const handler = startServerAndCreateNextHandler(server, {
         where: { email: session.user.email }
       });
     }
-    
+
     return { user };
   },
 });
 
-export { handler as GET, handler as POST };
+export async function GET(request: NextRequest) {
+  return handler(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handler(request);
+}
