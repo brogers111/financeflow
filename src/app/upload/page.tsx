@@ -8,7 +8,13 @@ import ManualInvestmentUpdate from '@/components/ManualInvestmentUpdate';
 type UploadMode = 'statement' | 'transaction' | 'investment';
 
 export default function UploadPage() {
-  const [mode, setMode] = useState<UploadMode | null>(null);
+  const [mode, setMode] = useState<UploadMode | null>(() => {
+    // On desktop (md breakpoint is 768px), default to showing the first component
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+      return 'statement';
+    }
+    return null;
+  });
 
   return (
     <div className="mx-auto p-4 md:p-6 pb-24 md:pb-6">

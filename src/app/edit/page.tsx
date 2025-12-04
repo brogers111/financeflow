@@ -11,7 +11,13 @@ import EditCategory from '@/components/EditCategory';
 type CreateMode = 'create-account' | 'create-investment' | 'edit-account' | 'edit-investment' | 'add-category' | 'edit-category';
 
 export default function CreatePage() {
-  const [mode, setMode] = useState<CreateMode | null>(null);
+  const [mode, setMode] = useState<CreateMode | null>(() => {
+    // On desktop (md breakpoint is 768px), default to showing the first component
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+      return 'create-account';
+    }
+    return null;
+  });
 
   const getModeTitle = (currentMode: CreateMode) => {
     switch(currentMode) {
