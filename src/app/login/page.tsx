@@ -24,7 +24,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row justify-start md:justify-between items-center bg-[#fbfcfb] font-sour p-4 md:p-0">
+    <div className="min-h-screen w-full flex flex-col md:flex-row justify-center md:justify-between items-center bg-[#fbfcfb] font-sour p-4 md:p-0">
       {/* Text and Image Section */}
       <div className='mx-4 md:mx-32 text-xl md:text-3xl font-semibold text-center flex gap-1 flex-col items-center md:mb-0'>
         <p>They say money talks,</p>
