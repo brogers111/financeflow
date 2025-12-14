@@ -3,6 +3,7 @@ import { Sour_Gummy, Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import ConditionalNavigation from "@/components/ConditionalNavigation";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const sourGummy = Sour_Gummy({
   subsets: ["latin"],
@@ -56,6 +57,7 @@ export default function RootLayout({
             </main>
           </div>
         </Providers>
+        <SpeedInsights />
       </body>
     </html>
   );
