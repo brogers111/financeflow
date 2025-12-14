@@ -214,7 +214,7 @@ export const typeDefs = gql`
 
     # Analytics
     monthlyStats(year: Int!, month: Int!): MonthlyStats!
-    netWorthHistory(startDate: String!, endDate: String!): [NetWorthData!]!
+    netWorthHistory: [NetWorthData!]!
     dashboardStats: DashboardScorecard!
     
     # Paycheck depletion

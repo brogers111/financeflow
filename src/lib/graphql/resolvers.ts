@@ -60,20 +60,32 @@ async function calculateActualAmount(
 export const resolvers = {
   Query: {
     // Fetch all active accounts
-    accounts: async () => {
+    accounts: async (_parent: unknown, _args: unknown, context: any) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
       return prisma.financialAccount.findMany({
-        where: { isActive: true },
+        where: { 
+          isActive: true,
+          userId: context.user.id
+        },
         include: { 
           transactions: true, 
           balanceHistory: true,
           user: true 
-        }
+        },
+        orderBy: { name: 'asc' }
       });
     },
 
     // Fetch single account by ID
-    account: async (_parent: unknown, { id }: { id: string }) => {
-      return prisma.financialAccount.findUnique({
+    account: async (_parent: unknown, { id }: { id: string }, context: any) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      const account = await prisma.financialAccount.findUnique({
         where: { id },
         include: { 
           transactions: true, 
@@ -81,11 +93,24 @@ export const resolvers = {
           user: true 
         }
       });
+
+      // Verify account belongs to user
+      if (!account || account.userId !== context.user.id) {
+        throw new Error('Account not found or access denied');
+      }
+
+      return account;
     },
 
     // Fetch transactions with filters
-    transactions: async (_parent: unknown, filters: TransactionFilters) => {
-      const where: Prisma.TransactionWhereInput = {};
+    transactions: async (_parent: unknown, filters: TransactionFilters, context: any) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      const where: Prisma.TransactionWhereInput = {
+        account: { userId: context.user.id }
+      };
       
       if (filters.accountId) where.accountId = filters.accountId;
       if (filters.categoryId) where.categoryId = filters.categoryId;
@@ -99,7 +124,11 @@ export const resolvers = {
       return prisma.transaction.findMany({
         where,
         include: { account: true, category: true },
-        orderBy: { date: 'desc' }
+        orderBy: [
+          { date: 'desc' },
+          { createdAt: 'desc' },
+          { id: 'desc' }
+        ]
       });
     },
 
@@ -109,9 +138,6 @@ export const resolvers = {
         throw new Error('Not authenticated');
       }
 
-      console.log('Fetching categories for userId:', context.user.id);
-      console.log('Filter by type:', type);
-
       const categories = await prisma.category.findMany({
         where: {
           userId: context.user.id,
@@ -120,6 +146,10 @@ export const resolvers = {
         include: {
           subcategories: true,
         },
+        orderBy: [
+          { type: 'asc' },
+          { name: 'asc' }
+        ]
       });
 
       return categories;
@@ -169,7 +199,7 @@ export const resolvers = {
           a.accountType === AccountCategory.BUSINESS
         )
         .reduce((sum, a) => sum + a.balance, 0);
-
+      
       // Get investment portfolios
       const investmentPortfolios = await prisma.investmentPortfolio.findMany({
         where: { userId: context.user.id }
@@ -184,8 +214,6 @@ export const resolvers = {
       const lastCompleteMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59); // Last day of last month
       const monthBeforeLast = new Date(now.getFullYear(), now.getMonth() - 2, 1);
       const monthBeforeLastEnd = new Date(now.getFullYear(), now.getMonth() - 1, 0, 23, 59, 59);
-
-      console.log(`📊 Comparing ${lastCompleteMonth.toLocaleDateString()} to ${monthBeforeLast.toLocaleDateString()}`);
 
       // Calculate LAST COMPLETE MONTH income and expenses
       const lastMonthIncome = await prisma.transaction.aggregate({
@@ -377,13 +405,18 @@ export const resolvers = {
     },
 
     // Fetch monthly stats
-    monthlyStats: async (_parent: unknown, { year, month }: { year: number; month: number }) => {
+    monthlyStats: async (_parent: unknown, { year, month }: { year: number; month: number }, context: any) => {
+      if (!context.user?.id){
+        throw new Error('Not authenticated');
+      }
+
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0, 23, 59, 59);
 
       const transactions = await prisma.transaction.findMany({
         where: {
-          date: { gte: startDate, lte: endDate }
+          date: { gte: startDate, lte: endDate },
+          account: { userId: context.user.id }
         },
         include: { category: true }
       });
@@ -428,163 +461,136 @@ export const resolvers = {
     },
 
     // Fetch net worth history
-    netWorthHistory: async (_parent: unknown, { startDate, endDate }: { startDate: string; endDate: string }, context: any) => {
+    netWorthHistory: async (_parent: unknown, _args: unknown, context: any) => {
       if (!context.user?.id) {
         throw new Error('Not authenticated');
       }
 
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      // Get ALL transactions, snapshots, and investment snapshots to find earliest date
+      const [allTransactions, allSnapshots, allInvestmentSnapshots] = await Promise.all([
+        prisma.transaction.findFirst({
+          where: { account: { userId: context.user.id } },
+          orderBy: { date: 'asc' }
+        }),
+        prisma.balanceSnapshot.findFirst({
+          where: { account: { userId: context.user.id } },
+          orderBy: { date: 'asc' }
+        }),
+        prisma.investmentSnapshot.findFirst({
+          where: { portfolio: { userId: context.user.id } },
+          orderBy: { date: 'asc' }
+        })
+      ]);
 
-      // Get all accounts for this user
+      // Find the earliest date across all data sources
+      const earliestDates = [
+        allTransactions?.date,
+        allSnapshots?.date,
+        allInvestmentSnapshots?.date
+      ].filter(Boolean);
+
+      if (earliestDates.length === 0) {
+        return [];
+      }
+
+      const absoluteStartDate = new Date(Math.min(...earliestDates.map(d => d!.getTime())));
+      
+      // Start from the beginning of the month of the earliest data
+      const start = new Date(absoluteStartDate.getFullYear(), absoluteStartDate.getMonth(), 1);
+      const end = new Date();
+
+      // Generate array of all months from start to now
+      const months: Date[] = [];
+      let current = new Date(start);
+      
+      while (current <= end) {
+        months.push(new Date(current));
+        current.setMonth(current.getMonth() + 1);
+      }
+
+      // Get all accounts for this user WITH balance snapshots
       const accounts = await prisma.financialAccount.findMany({
         where: { 
           userId: context.user.id,
           isActive: true
+        },
+        include: {
+          balanceHistory: true
         }
       });
 
-      // Get all balance snapshots in the date range
-      const balanceSnapshots = await prisma.balanceSnapshot.findMany({
-        where: {
-          account: { userId: context.user.id },
-          date: { gte: start, lte: end }
-        },
-        include: {
-          account: true
-        },
-        orderBy: { date: 'asc' }
-      });
-
-      // Get all investment portfolios with their snapshots
+      // Get all investment portfolios with ALL their snapshots (no date filter)
       const portfolios = await prisma.investmentPortfolio.findMany({
         where: { userId: context.user.id },
         include: {
           valueHistory: {
-            where: {
-              date: { gte: start, lte: end }
-            },
+            // REMOVED: date filter - we need ALL snapshots for forward-fill
             orderBy: { date: 'desc' }
           }
         }
       });
 
-      // Build month-end snapshots
-      const monthlyData: Record<string, {
-        personalCash: number;
-        personalSavings: number;
-        businessSavings: number;
-        investments: number;
-      }> = {};
-
-      // Initialize all months in range
-      for (let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
-        const monthKey = d.toISOString().slice(0, 7); // YYYY-MM
-        monthlyData[monthKey] = {
-          personalCash: 0,
-          personalSavings: 0,
-          businessSavings: 0,
-          investments: 0
-        };
-      }
-
-      const sortedMonths = Object.keys(monthlyData).sort();
-
-      // Process balance snapshots by month
-      for (const monthKey of sortedMonths) {
-        const [year, monthNum] = monthKey.split('-').map(Number);
-        const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
-
-        // For each account, find the most recent snapshot at or before month-end
-        for (const account of accounts) {
-          const accountSnapshots = balanceSnapshots.filter(
-            snap => snap.accountId === account.id && snap.date <= monthEnd
-          );
-
-          if (accountSnapshots.length === 0) continue;
-
-          // Get the most recent snapshot for this month
-          const mostRecentSnapshot = accountSnapshots
-            .sort((a, b) => b.date.getTime() - a.date.getTime())[0];
-
-          const balance = mostRecentSnapshot.balance;
-
-          // Categorize by account type and category
-          if (account.accountType === AccountCategory.PERSONAL) {
-            if (account.type === AccountType.CHECKING || account.type === AccountType.CASH) {
-              monthlyData[monthKey].personalCash += balance;
-            } else if (account.type === AccountType.CREDIT_CARD) {
-              // Credit cards subtract from cash (they're negative in DB)
-              monthlyData[monthKey].personalCash += balance;
-            } else if (account.type === AccountType.SAVINGS) {
-              monthlyData[monthKey].personalSavings += balance;
-            }
-          } else if (account.accountType === AccountCategory.BUSINESS) {
-            if (account.type === AccountType.SAVINGS || account.type === AccountType.CHECKING || account.type === AccountType.CASH) {
-              monthlyData[monthKey].businessSavings += balance;
-            }
-          }
-        }
-
-        // Get investment values for this month
-        for (const portfolio of portfolios) {
-          const portfolioSnapshots = portfolio.valueHistory.filter(
-            snap => new Date(snap.date) <= monthEnd
-          );
-
-          if (portfolioSnapshots.length > 0) {
-            // Already sorted desc, take first (most recent)
-            monthlyData[monthKey].investments += portfolioSnapshots[0].value;
-          }
-        }
-      }
-
-      // Forward-fill missing months with previous month's values
-      for (let i = 1; i < sortedMonths.length; i++) {
-        const currentMonth = sortedMonths[i];
-        const prevMonth = sortedMonths[i - 1];
+      // Helper function to get balance at end of month with forward-fill
+      const getBalanceAtMonth = (snapshots: any[], targetMonth: Date) => {
+        const endOfMonth = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0, 23, 59, 59);
         
-        // Forward-fill each component if it's zero but previous wasn't
-        if (monthlyData[currentMonth].personalCash === 0 && monthlyData[prevMonth].personalCash !== 0) {
-          monthlyData[currentMonth].personalCash = monthlyData[prevMonth].personalCash;
-        }
-        if (monthlyData[currentMonth].personalSavings === 0 && monthlyData[prevMonth].personalSavings !== 0) {
-          monthlyData[currentMonth].personalSavings = monthlyData[prevMonth].personalSavings;
-        }
-        if (monthlyData[currentMonth].businessSavings === 0 && monthlyData[prevMonth].businessSavings !== 0) {
-          monthlyData[currentMonth].businessSavings = monthlyData[prevMonth].businessSavings;
-        }
-        if (monthlyData[currentMonth].investments === 0 && monthlyData[prevMonth].investments !== 0) {
-          monthlyData[currentMonth].investments = monthlyData[prevMonth].investments;
-        }
-      }
+        // Find the most recent snapshot at or before the end of this month
+        const relevantSnapshot = snapshots
+          .filter(s => new Date(s.date) <= endOfMonth)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        
+        return relevantSnapshot?.balance || relevantSnapshot?.value || 0;
+      };
 
-      // Filter and format results
-      const result = sortedMonths
-        .filter(month => {
-          const data = monthlyData[month];
-          return (
-            data.personalCash !== 0 ||
-            data.personalSavings !== 0 ||
-            data.businessSavings !== 0 ||
-            data.investments !== 0
-          );
-        })
-        .map(month => {
-          const data = monthlyData[month];
-          return {
-            date: month,
-            personalCash: Math.round(data.personalCash * 100) / 100,
-            personalSavings: Math.round(data.personalSavings * 100) / 100,
-            businessSavings: Math.round(data.businessSavings * 100) / 100,
-            investments: Math.round(data.investments * 100) / 100,
-            netWorth: Math.round((data.personalCash + data.personalSavings + data.businessSavings + data.investments) * 100) / 100
-          };
+      // Build history for each month
+      const history = months.map(month => {
+        let personalCash = 0;
+        let personalSavings = 0;
+        let businessSavings = 0;
+        let investmentsTotal = 0;
+
+        // Calculate personal cash (checking + cash - credit cards)
+        accounts.forEach(account => {
+          const balance = getBalanceAtMonth(account.balanceHistory || [], month);
+          
+          if (account.accountType === 'PERSONAL' && account.type === 'CHECKING') {
+            personalCash += balance;
+          } else if (account.accountType === 'PERSONAL' && account.type === 'CASH') {
+            personalCash += balance;
+          } else if (account.type === 'CREDIT_CARD') {
+            personalCash += balance; // Credit cards are already negative
+          }
         });
 
-      console.log('Net Worth History Debug:', JSON.stringify(result, null, 2));
+        // Calculate personal savings
+        accounts.forEach(account => {
+          if (account.accountType === 'PERSONAL' && account.type === 'SAVINGS') {
+            personalSavings += getBalanceAtMonth(account.balanceHistory || [], month);
+          }
+        });
 
-      return result;
+        // Calculate business savings
+        accounts.forEach(account => {
+          if (account.accountType === 'BUSINESS' && account.type === 'SAVINGS') {
+            businessSavings += getBalanceAtMonth(account.balanceHistory || [], month);
+          }
+        });
+
+        // Calculate investments
+        portfolios.forEach(portfolio => {
+          investmentsTotal += getBalanceAtMonth(portfolio.valueHistory, month);
+        });
+
+        return {
+          date: month.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          personalCash: Math.round(personalCash * 100) / 100,
+          personalSavings: Math.round(personalSavings * 100) / 100,
+          businessSavings: Math.round(businessSavings * 100) / 100,
+          investments: Math.round(investmentsTotal * 100) / 100
+        };
+      });
+
+      return history;
     },
 
     investmentPortfolios: async (_parent: unknown, _args: unknown, context: any) => {
@@ -598,7 +604,8 @@ export const resolvers = {
           valueHistory: {
             orderBy: { date: 'desc' }
           }
-        }
+        },
+        orderBy: { name: 'asc' }
       });
 
       // Calculate the actual current value from the most recent snapshot
@@ -613,8 +620,12 @@ export const resolvers = {
       });
     },
 
-    investmentPortfolio: async (_parent: unknown, { id }: { id: string }) => {
-      return prisma.investmentPortfolio.findUnique({
+    investmentPortfolio: async (_parent: unknown, { id }: { id: string }, context: any) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      const portfolio = await prisma.investmentPortfolio.findUnique({
         where: { id },
         include: {
           valueHistory: {
@@ -622,6 +633,13 @@ export const resolvers = {
           }
         }
       });
+
+      // Verify portfolio belongs to user
+      if (!portfolio || portfolio.userId !== context.user.id) {
+        throw new Error('Portfolio not found or access denied');
+      }
+
+      return portfolio;
     },
 
     budgetPeriods: async (
@@ -892,7 +910,23 @@ export const resolvers = {
     },
 
     // Delete account
-    deleteAccount: async (_parent: unknown, { id }: { id: string }) => {
+    deleteAccount: async (_parent: unknown, { id }: { id: string }, context: any) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
+      }
+
+      // Verify account belongs to user
+      const existingAccount = await prisma.financialAccount.findFirst({
+        where: {
+          id,
+          userId: context.user.id
+        }
+      });
+
+      if (!existingAccount) {
+        throw new Error('Account not found or access denied');
+      }
+
       await prisma.financialAccount.delete({ where: { id } });
       return true;
     },
@@ -972,25 +1006,31 @@ export const resolvers = {
     },
 
     // Delete transaction
-    deleteTransaction: async (_parent: unknown, { id }: { id: string }) => {
-      const transaction = await prisma.transaction.findUnique({
-        where: { id }
-      });
-
-      if (transaction) {
-        // Reverse the balance change
-        await prisma.financialAccount.update({
-          where: { id: transaction.accountId },
-          data: {
-            balance: {
-              decrement: transaction.amount
-            }
-          }
-        });
-
-        await prisma.transaction.delete({ where: { id } });
+    deleteTransaction: async (_parent: unknown, { id }: { id: string }, context: any) => {
+      if (!context.user?.id) {
+        throw new Error('Not authenticated');
       }
 
+      const transaction = await prisma.transaction.findUnique({
+        where: { id },
+        include: { account: true }
+      });
+
+      if (!transaction || transaction.account.userId !== context.user.id) {
+        throw new Error('Transaction not found or access denied');
+      }
+
+      // Reverse the balance change
+      await prisma.financialAccount.update({
+        where: { id: transaction.accountId },
+        data: {
+          balance: {
+            decrement: transaction.amount
+          }
+        }
+      });
+
+      await prisma.transaction.delete({ where: { id } });
       return true;
     },
 
@@ -1029,8 +1069,6 @@ export const resolvers = {
       if (transaction.description) {
         const pattern = transaction.description.toUpperCase().trim();
 
-        console.log(`Learning pattern: "${pattern}" => category ${categoryId}`);
-
         await prisma.categorizationPattern.upsert({
           where: { descriptionPattern: pattern },
           update: {
@@ -1047,8 +1085,6 @@ export const resolvers = {
             userId: context.user.id
           }
         });
-        
-        console.log(`Transaction ${id} categorized to category ${categoryId}. Pattern: ${pattern}`);
       }
 
       return transaction;
@@ -1062,9 +1098,6 @@ export const resolvers = {
       if (!context.user?.id) {
         throw new Error('Not authenticated');
       }
-
-      console.log('Creating category with userId:', context.user.id);
-      console.log('Input:', input);
 
       // Check if category with this name already exists for this user
       const existingCategory = await prisma.category.findFirst({
@@ -1088,8 +1121,6 @@ export const resolvers = {
           userId: context.user.id,
         },
       });
-
-      console.log('Created category:', newCategory);
       
       return newCategory;
     },
@@ -1259,7 +1290,11 @@ export const resolvers = {
         }
 
         if (endingBalance === 0 && transactions.length > 0) {
-          console.warn('⚠️ Warning: Parser returned $0 ending balance with transactions present');
+          throw new Error(
+            'Parser error: Statement ending balance is $0 but transactions were found. ' +
+            'This likely means you selected the wrong statement type. ' +
+            'Please verify you selected the correct statement type and try again.'
+          );
         }
 
         const uniqueAmounts = new Set(transactions.map((t: any) => t.amount));
@@ -1284,8 +1319,6 @@ export const resolvers = {
         const dates = transactions.map((t: any) => new Date(t.date));
         const statementStartDate = new Date(Math.min(...dates.map((d: Date) => d.getTime())));
         const statementEndDate = new Date(Math.max(...dates.map((d: Date) => d.getTime())));
-
-        console.log(`📅 Statement date range: ${statementStartDate.toISOString()} to ${statementEndDate.toISOString()}`);
 
         // Check for existing transactions in this date range for this account
         const existingTransactions = await prisma.transaction.findMany({
@@ -1324,7 +1357,6 @@ export const resolvers = {
 
           // If 80% or more of transactions match, consider it a duplicate
           const matchPercentage = (matchCount / transactions.length) * 100;
-          console.log(`🔍 Duplicate check: ${matchCount}/${transactions.length} transactions match (${matchPercentage.toFixed(1)}%)`);
 
           if (matchPercentage >= 80) {
             throw new Error(
@@ -1334,9 +1366,7 @@ export const resolvers = {
         }
 
         // Additional check: Compare ending balance if it exists
-        if (endingBalance !== 0 && Math.abs(account.balance - endingBalance) < 0.01) {
-          console.log(`⚠️ Account balance matches statement ending balance - possible duplicate`);
-          
+        if (endingBalance !== 0 && Math.abs(account.balance - endingBalance) < 0.01) {          
           // If balances match AND we have matching transactions, it's very likely a duplicate
           if (existingTransactions.length >= transactions.length * 0.5) {
             throw new Error(
@@ -1358,7 +1388,6 @@ export const resolvers = {
             maxDate.getDate(),
             12, 0, 0, 0
           ));
-          console.log(`📅 Statement end date (noon UTC): ${statementEndDate.toISOString()}`);
         }
 
         // Process each transaction
@@ -1428,7 +1457,6 @@ export const resolvers = {
             statementEndDate >= mostRecentTransaction.date;
 
           if (shouldUpdateBalance) {
-            console.log(`💰 Updating account balance to: $${endingBalance}`);
             await prisma.financialAccount.update({
               where: { id: accountId },
               data: {
@@ -1436,7 +1464,7 @@ export const resolvers = {
               }
             });
 
-            // CREATE BALANCE SNAPSHOT - ADD THIS
+            // CREATE BALANCE SNAPSHOT
             await prisma.balanceSnapshot.create({
               data: {
                 accountId: accountId,
@@ -1444,11 +1472,8 @@ export const resolvers = {
                 date: statementEndDate
               }
             });
-            console.log(`📸 Created balance snapshot for ${statementEndDate.toISOString()}: $${endingBalance}`);
-          } else {
-            console.log(`⏭️ Skipping balance update - statement is older than existing transactions`);
-            
-            // STILL CREATE SNAPSHOT FOR HISTORICAL MONTH - ADD THIS
+          } else {            
+            // STILL CREATE SNAPSHOT FOR HISTORICAL MONTH
             await prisma.balanceSnapshot.create({
               data: {
                 accountId: accountId,
@@ -1456,7 +1481,6 @@ export const resolvers = {
                 date: statementEndDate
               }
             });
-            console.log(`📸 Created historical balance snapshot for ${statementEndDate.toISOString()}: $${endingBalance}`);
           }
         }
 
@@ -1553,10 +1577,7 @@ export const resolvers = {
         inputDate.getUTCDate(),
         12, 0, 0, 0
       ));
-      
-      console.log(`📅 Input date: ${date}`);
-      console.log(`📅 Parsed to noon UTC: ${snapshotDate.toISOString()}`);
-      
+
       // Create a new snapshot
       await prisma.investmentSnapshot.create({
         data: {
@@ -1586,9 +1607,6 @@ export const resolvers = {
           }
         }
       });
-
-      console.log(`📈 Investment snapshot created for ${portfolio.name}: $${value} on ${snapshotDate.toISOString()}`);
-
       return portfolio;
     },
 

@@ -147,14 +147,13 @@ export const GET_MONTHLY_STATS = gql`
 `;
 
 export const GET_NET_WORTH_HISTORY = gql`
-  query GetNetWorthHistory($startDate: String!, $endDate: String!) {
-    netWorthHistory(startDate: $startDate, endDate: $endDate) {
+  query GetNetWorthHistory {
+    netWorthHistory {
       date
       personalCash
       personalSavings
       businessSavings
       investments
-      netWorth
     }
   }
 `;
