@@ -310,7 +310,7 @@ export default function Dashboard() {
         <p className="text-xs font-semibold bg-[#EEEBD9] px-2 border border-[#282427] rounded shadow-lg inline-block">{data.date}</p>
         <div className='mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg'>
           <p className="text-md font-bold">
-            Balance: ${data.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            Balance: ${data.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>
 
@@ -386,33 +386,33 @@ export default function Dashboard() {
         {/* Personal Cash */}
         <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
           <p className="text-sm font-semibold text-[#D496A7]">Personal Cash:</p>
-          <p className="text-sm font-semibold text-[#D496A7]">${data.personalCash.toLocaleString()}</p>
+          <p className="text-sm font-semibold text-[#D496A7]">${data.personalCash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
 
         {/* Personal Savings */}
         <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
           <p className="text-sm font-semibold text-[#35B79B]">Personal Savings:</p>
-          <p className="text-sm font-semibold text-[#35B79B]">${data.personalSavings.toLocaleString()}</p>
+          <p className="text-sm font-semibold text-[#35B79B]">${data.personalSavings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
 
         {/* Business Savings */}
         <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
           <p className="text-sm font-semibold text-[#EF8354]">Business Savings:</p>
-          <p className="text-sm font-semibold text-[#EF8354]">${data.businessSavings.toLocaleString()}</p>
+          <p className="text-sm font-semibold text-[#EF8354]">${data.businessSavings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
 
         {/* Investments */}
         <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
           <p className="text-sm font-semibold text-[#6CA6C1]">Investments:</p>
           <p className='text-sm font-semibold text-[#6CA6C1]'>
-            ${data.investments.toLocaleString()}
+            ${data.investments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>
 
         {/* Net Worth */}
         <div className="flex justify-between mt-1 bg-[#EEEBD9] px-2 py-1 border border-[#282427] rounded shadow-lg">
           <p className="text-md font-bold text-[#282427]">Net Worth:</p>
-          <p className="text-md font-bold text-[#282427]">${data.netWorth.toLocaleString()}</p>
+          <p className="text-md font-bold text-[#282427]">${data.netWorth.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
     );

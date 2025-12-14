@@ -79,18 +79,34 @@ function parseTransactions(text: string): ParsedTransaction[] {
   const transactions: ParsedTransaction[] = [];
 
   // Extract start and end dates from statement period to handle cross-year statements
-  const periodMatch = text.match(/(\w+)\s+(\d+),\s+(\d{4})\s+through\s+(\w+)\s+(\d+),\s+(\d{4})/i);
+  // Credit card format: "Opening/Closing Date   09/04/19 - 10/03/19"
+  const creditCardMatch = text.match(/Opening\/Closing Date\s+(\d{2})\/(\d{2})\/(\d{2})\s+-\s+(\d{2})\/(\d{2})\/(\d{2})/i);
 
   let startMonth = 0, startYear = new Date().getFullYear();
   let endMonth = 11, endYear = new Date().getFullYear();
 
-  if (periodMatch) {
-    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june',
-                        'july', 'august', 'september', 'october', 'november', 'december'];
-    startMonth = monthNames.indexOf(periodMatch[1].toLowerCase());
-    startYear = parseInt(periodMatch[3]);
-    endMonth = monthNames.indexOf(periodMatch[4].toLowerCase());
-    endYear = parseInt(periodMatch[6]);
+  if (creditCardMatch) {
+    // Parse MM/DD/YY format
+    startMonth = parseInt(creditCardMatch[1]) - 1; // 0-indexed
+    endMonth = parseInt(creditCardMatch[4]) - 1;   // 0-indexed
+
+    // Convert 2-digit year to 4-digit (assuming 2000s for 00-49, 1900s for 50-99)
+    const endYearShort = parseInt(creditCardMatch[6]);
+    endYear = endYearShort < 50 ? 2000 + endYearShort : 1900 + endYearShort;
+
+    const startYearShort = parseInt(creditCardMatch[3]);
+
+    // If start month > end month, it crosses years
+    if (startMonth > endMonth) {
+      startYear = endYear - 1;
+    } else {
+      // Check if the short years are different (e.g., 12/26/24 - 01/24/25)
+      if (startYearShort !== endYearShort) {
+        startYear = endYear - 1;
+      } else {
+        startYear = endYear;
+      }
+    }
   }
 
   const lines = text.split('\n');

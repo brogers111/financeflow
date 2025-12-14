@@ -74,14 +74,22 @@ async function testParser(pdfPath, parserType) {
     process.exit(1);
   }
 
+  const txList = transactions.transactions || transactions;
+
   console.log(
-    `\n✅ Parsed ${transactions.length} transactions using ${parserName}`
+    `\n✅ Parsed ${txList.length} transactions using ${parserName}`
   );
   console.log("━".repeat(100));
 
+  // Show year information if available
+  if (txList.length > 0) {
+    const years = [...new Set(txList.map(t => t.date.getFullYear()))].sort();
+    console.log(`\n📅 Years found in transactions: ${years.join(', ')}`);
+  }
+
   // Preview
   console.log("\nAll transactions:");
-  transactions.forEach((t, i) => {
+  txList.forEach((t, i) => {
     const sign = t.amount >= 0 ? "+" : "";
     const balanceStr = t.balance ? ` | Bal: $${t.balance.toFixed(2)}` : "";
     console.log(
@@ -92,14 +100,14 @@ async function testParser(pdfPath, parserType) {
   });
 
   // Enhanced summary with breakdown by type
-  const total = transactions.reduce((sum, t) => sum + t.amount, 0);
-  const incomeTotal = transactions
+  const total = txList.reduce((sum, t) => sum + t.amount, 0);
+  const incomeTotal = txList
     .filter((t) => t.type === "INCOME")
     .reduce((sum, t) => sum + t.amount, 0);
-  const expenseTotal = transactions
+  const expenseTotal = txList
     .filter((t) => t.type === "EXPENSE")
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const transferTotal = transactions
+  const transferTotal = txList
     .filter((t) => t.type === "TRANSFER")
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
@@ -110,7 +118,7 @@ async function testParser(pdfPath, parserType) {
   console.log(`🔄 Transfers: $${transferTotal.toFixed(2)}`);
   console.log(
     `   (${
-      transactions.filter((t) => t.type === "TRANSFER").length
+      txList.filter((t) => t.type === "TRANSFER").length
     } investment/savings transfers)`
   );
 
