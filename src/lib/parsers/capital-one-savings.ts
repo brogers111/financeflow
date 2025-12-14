@@ -72,16 +72,39 @@ function extractEndingBalance(text: string): number {
 function parseTransactions(text: string): ParsedTransaction[] {
   const transactions: ParsedTransaction[] = [];
 
-  const periodMatch = text.match(/Oct 1 - Oct 31, (\d{4})/i) || 
-                      text.match(/(\d{4})/);
-  const year = periodMatch ? parseInt(periodMatch[1]) : new Date().getFullYear();
-
-  const lines = text.split('\n');
+  // Extract start and end dates from statement period to handle cross-year statements
+  // Capital One format: "Dec 1 - Dec 31, 2024" or "Dec 26 - Jan 24, 2025"
+  const periodMatch = text.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+\s+-\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+,\s+(\d{4})/i);
 
   const monthMap: { [key: string]: number } = {
     'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
     'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
   };
+
+  let startMonth = 0, startYear = new Date().getFullYear();
+  let endMonth = 11, endYear = new Date().getFullYear();
+
+  if (periodMatch) {
+    startMonth = monthMap[periodMatch[1]];
+    endMonth = monthMap[periodMatch[2]];
+    endYear = parseInt(periodMatch[3]);
+
+    // If start month > end month, it's a cross-year statement
+    if (startMonth > endMonth) {
+      startYear = endYear - 1;
+    } else {
+      startYear = endYear;
+    }
+  } else {
+    // Fallback: try to extract any year
+    const yearMatch = text.match(/(\d{4})/);
+    if (yearMatch) {
+      endYear = parseInt(yearMatch[1]);
+      startYear = endYear;
+    }
+  }
+
+  const lines = text.split('\n');
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -98,6 +121,16 @@ function parseTransactions(text: string): ParsedTransaction[] {
 
     const [, monthName, day] = dateMatch;
     const month = monthMap[monthName];
+
+    // Determine the correct year based on the transaction month
+    let year = endYear;
+    if (startYear !== endYear) {
+      // Cross-year statement: use startYear for months matching start period
+      if (month === startMonth || month > endMonth) {
+        year = startYear;
+      }
+    }
+
     const date = new Date(year, month, parseInt(day));
 
     // Check if amount/balance are on next line

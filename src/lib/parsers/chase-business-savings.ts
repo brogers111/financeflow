@@ -85,16 +85,27 @@ function extractEndingBalance(text: string): number {
 function parseTransactions(text: string): ParsedTransaction[] {
   const transactions: ParsedTransaction[] = [];
 
-  // Extract year
-  const periodMatch = text.match(/(\w+)\s+\d+,\s+(\d{4})\s+through/i);
-  const year = periodMatch ? parseInt(periodMatch[2]) : new Date().getFullYear();
+  // Extract start and end dates from statement period to handle cross-year statements
+  const periodMatch = text.match(/(\w+)\s+(\d+),\s+(\d{4})\s+through\s+(\w+)\s+(\d+),\s+(\d{4})/i);
+
+  let startMonth = 0, startYear = new Date().getFullYear();
+  let endMonth = 11, endYear = new Date().getFullYear();
+
+  if (periodMatch) {
+    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june',
+                        'july', 'august', 'september', 'october', 'november', 'december'];
+    startMonth = monthNames.indexOf(periodMatch[1].toLowerCase());
+    startYear = parseInt(periodMatch[3]);
+    endMonth = monthNames.indexOf(periodMatch[4].toLowerCase());
+    endYear = parseInt(periodMatch[6]);
+  }
 
   const lines = text.split('\n');
 
   for (const line of lines) {
     // Must start with MM/DD
     if (!line.match(/^\d{2}\/\d{2}/)) continue;
-    
+
     // Skip balance summary lines
     if (line.match(/Beginning Balance|Ending Balance/i)) continue;
 
@@ -103,7 +114,18 @@ function parseTransactions(text: string): ParsedTransaction[] {
     if (!dateMatch) continue;
 
     const [, month, day] = dateMatch;
-    const date = new Date(year, parseInt(month) - 1, parseInt(day));
+    const transactionMonth = parseInt(month) - 1; // 0-indexed
+
+    // Determine the correct year based on the transaction month
+    let year = endYear;
+    if (startYear !== endYear) {
+      // Cross-year statement: use startYear for months matching start period
+      if (transactionMonth === startMonth || transactionMonth > endMonth) {
+        year = startYear;
+      }
+    }
+
+    const date = new Date(year, transactionMonth, parseInt(day));
 
     // Tokenize line
     const tokens = line.split(/\s+/).filter((t) => t.length > 0);
