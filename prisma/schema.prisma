@@ -200,7 +200,7 @@ model HealthMetric {
 
 model CategorizationPattern {
   id                 String   @id @default(uuid())
-  descriptionPattern String   @unique
+  descriptionPattern String
   categoryId         String
   category           Category @relation(fields: [categoryId], references: [id])
   confidence         Float    @default(0.7)
@@ -211,6 +211,7 @@ model CategorizationPattern {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
+  @@unique([userId, descriptionPattern])
   @@index([descriptionPattern])
 }
 

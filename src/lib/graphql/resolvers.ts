@@ -1070,7 +1070,12 @@ export const resolvers = {
         const pattern = transaction.description.toUpperCase().trim();
 
         await prisma.categorizationPattern.upsert({
-          where: { descriptionPattern: pattern },
+          where: {
+            userId_descriptionPattern: {
+              userId: context.user.id,
+              descriptionPattern: pattern
+            }
+          },
           update: {
             categoryId,
             confidence: 1.0,
