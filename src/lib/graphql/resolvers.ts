@@ -6,6 +6,28 @@ interface Context {
   user: User | null;
 }
 
+/**
+ * Normalizes a transaction description for categorization pattern matching.
+ * - Converts to uppercase
+ * - Truncates to 20 characters
+ * - Removes trailing numbers and special characters
+ */
+function normalizeDescriptionPattern(description: string): string {
+  const upper = description.toUpperCase().trim();
+
+  // Take first 20 characters
+  let normalized = upper.substring(0, 20);
+
+  // Remove trailing non-letter characters (numbers, *, #, spaces, etc.)
+  // This keeps letters and removes common suffixes like IDs, transaction numbers, etc.
+  normalized = normalized.replace(/[^A-Z]+$/, '');
+
+  // Trim any remaining whitespace
+  normalized = normalized.trim();
+
+  return normalized;
+}
+
 interface CreateAccountInput {
   name: string;
   type: AccountType;
@@ -1067,7 +1089,7 @@ export const resolvers = {
 
       // Learn from this categorization
       if (transaction.description) {
-        const pattern = transaction.description.toUpperCase().trim();
+        const pattern = normalizeDescriptionPattern(transaction.description);
 
         await prisma.categorizationPattern.upsert({
           where: {
@@ -1397,8 +1419,9 @@ export const resolvers = {
 
         // Process each transaction
         for (const txn of transactions) {
+          const normalizedDesc = normalizeDescriptionPattern(txn.description);
           const matchingPattern = patterns.find(p =>
-            txn.description.toUpperCase().includes(p.descriptionPattern)
+            normalizedDesc === p.descriptionPattern || normalizedDesc.startsWith(p.descriptionPattern)
           );
 
           const prismaType = txn.type as TransactionType;
