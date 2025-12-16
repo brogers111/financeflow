@@ -1316,7 +1316,9 @@ export const resolvers = {
           );
         }
 
-        if (endingBalance === 0 && transactions.length > 0) {
+        // Only validate $0 balance for non-credit card statements
+        // Credit cards can legitimately have $0 balance when paid off
+        if (endingBalance === 0 && transactions.length > 0 && statementType !== 'CHASE_CREDIT') {
           throw new Error(
             'Parser error: Statement ending balance is $0 but transactions were found. ' +
             'This likely means you selected the wrong statement type. ' +
