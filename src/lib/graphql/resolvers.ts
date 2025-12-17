@@ -530,14 +530,15 @@ export const resolvers = {
         current.setMonth(current.getMonth() + 1);
       }
 
-      // Get all accounts for this user WITH balance snapshots
+      // Get all accounts for this user WITH balance snapshots AND transactions
       const accounts = await prisma.financialAccount.findMany({
-        where: { 
+        where: {
           userId: context.user.id,
           isActive: true
         },
         include: {
-          balanceHistory: true
+          balanceHistory: true,
+          transactions: true
         }
       });
 
@@ -552,64 +553,101 @@ export const resolvers = {
         }
       });
 
-      // Helper function to get balance at end of month with forward-fill
-      const getBalanceAtMonth = (snapshots: any[], targetMonth: Date) => {
+      // Helper for investment portfolios (snapshots only)
+      const getInvestmentBalanceAtMonth = (snapshots: any[], targetMonth: Date) => {
         const endOfMonth = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0, 23, 59, 59);
-        
+
         // Find the most recent snapshot at or before the end of this month
         const relevantSnapshot = snapshots
           .filter(s => new Date(s.date) <= endOfMonth)
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-        
-        return relevantSnapshot?.balance || relevantSnapshot?.value || 0;
+
+        return relevantSnapshot?.value || 0;
       };
+
+      // Build running balances for each account
+      const accountRunningBalances = new Map<string, number>();
+      accounts.forEach(account => {
+        accountRunningBalances.set(account.id, 0);
+      });
 
       // Build history for each month
       const history = months.map(month => {
+        const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
+        const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59);
+
+        // For each account, determine its balance for this month
+        accounts.forEach(account => {
+          // Check if there's a balance snapshot for this month
+          const snapshotForMonth = account.balanceHistory?.find((s: any) => {
+            const snapDate = new Date(s.date);
+            return snapDate >= startOfMonth && snapDate <= endOfMonth;
+          });
+
+          if (snapshotForMonth) {
+            // Use the snapshot as the running balance
+            console.log(`  📸 ${account.name}: Using snapshot balance $${snapshotForMonth.balance}`);
+            accountRunningBalances.set(account.id, snapshotForMonth.balance);
+          } else {
+            // Calculate change from transactions in this month
+            const transactionsThisMonth = account.transactions?.filter((t: any) => {
+              const txnDate = new Date(t.date);
+              return txnDate >= startOfMonth && txnDate <= endOfMonth;
+            }) || [];
+
+            const monthChange = transactionsThisMonth.reduce((sum: number, t: any) => sum + t.amount, 0);
+            const currentBalance = accountRunningBalances.get(account.id) || 0;
+            const newBalance = currentBalance + monthChange;
+
+            console.log(`  💳 ${account.name}: $${currentBalance} + $${monthChange} = $${newBalance} (${transactionsThisMonth.length} txns)`);
+            accountRunningBalances.set(account.id, newBalance);
+          }
+        });
+
+        // Now calculate totals for each category using running balances
         let personalCash = 0;
         let personalSavings = 0;
         let businessSavings = 0;
         let investmentsTotal = 0;
 
-        // Calculate personal cash (checking + cash - credit cards)
         accounts.forEach(account => {
-          const balance = getBalanceAtMonth(account.balanceHistory || [], month);
-          
+          const balance = accountRunningBalances.get(account.id) || 0;
+
           if (account.accountType === 'PERSONAL' && account.type === 'CHECKING') {
             personalCash += balance;
           } else if (account.accountType === 'PERSONAL' && account.type === 'CASH') {
             personalCash += balance;
           } else if (account.type === 'CREDIT_CARD') {
             personalCash += balance; // Credit cards are already negative
-          }
-        });
-
-        // Calculate personal savings
-        accounts.forEach(account => {
-          if (account.accountType === 'PERSONAL' && account.type === 'SAVINGS') {
-            personalSavings += getBalanceAtMonth(account.balanceHistory || [], month);
-          }
-        });
-
-        // Calculate business savings
-        accounts.forEach(account => {
-          if (account.accountType === 'BUSINESS' && account.type === 'SAVINGS') {
-            businessSavings += getBalanceAtMonth(account.balanceHistory || [], month);
+          } else if (account.accountType === 'PERSONAL' && account.type === 'SAVINGS') {
+            personalSavings += balance;
+          } else if (account.accountType === 'BUSINESS' && account.type === 'SAVINGS') {
+            businessSavings += balance;
           }
         });
 
         // Calculate investments
         portfolios.forEach(portfolio => {
-          investmentsTotal += getBalanceAtMonth(portfolio.valueHistory, month);
+          investmentsTotal += getInvestmentBalanceAtMonth(portfolio.valueHistory, month);
         });
 
-        return {
+        const result = {
           date: month.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
           personalCash: Math.round(personalCash * 100) / 100,
           personalSavings: Math.round(personalSavings * 100) / 100,
           businessSavings: Math.round(businessSavings * 100) / 100,
           investments: Math.round(investmentsTotal * 100) / 100
         };
+
+        console.log(`📊 Net Worth History - ${result.date}:`, {
+          personalCash: result.personalCash,
+          personalSavings: result.personalSavings,
+          businessSavings: result.businessSavings,
+          investments: result.investments,
+          total: result.personalCash + result.personalSavings + result.businessSavings + result.investments
+        });
+
+        return result;
       });
 
       return history;
