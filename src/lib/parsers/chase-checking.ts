@@ -173,27 +173,15 @@ function parseTransactions(text: string): ParsedTransaction[] {
     // Determine transaction type
     let type: 'INCOME' | 'EXPENSE' | 'TRANSFER' = 'EXPENSE';
 
-    // Priority 1: Investment contributions → TRANSFER
+    // Priority 1: Account transfers → TRANSFER
     if (
-      descUpper.includes('AXOSADVSERV') ||
-      descUpper.includes('AMERICAN FUNDS') ||
-      descUpper.includes('INVESTMENT') ||
-      descUpper.includes('401K') ||
-      descUpper.includes('ROTH IRA') ||
-      descUpper.includes('BROKERAGE') ||
-      descUpper.includes('CONTRIB')
-    ) {
-      type = 'TRANSFER';
-    }
-    // Priority 2: Account transfers → TRANSFER
-    else if (
       descUpper.includes('TRANSFER FROM') ||
       descUpper.includes('TRANSFER TO') ||
       descUpper.includes('ONLINE TRANSFER')
     ) {
       type = 'TRANSFER';
     }
-    // Priority 3: Income keywords → INCOME
+    // Priority 2: Income keywords → INCOME
     else if (
       descUpper.includes('PAYROLL') ||
       descUpper.includes('ZELLE PAYMENT FROM') ||
@@ -203,7 +191,7 @@ function parseTransactions(text: string): ParsedTransaction[] {
     ) {
       type = 'INCOME';
     }
-    // Priority 4: Positive amount (default) → INCOME
+    // Priority 3: Positive amount (default) → INCOME
     else if (amount > 0) {
       type = 'INCOME';
     }

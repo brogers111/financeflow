@@ -894,7 +894,7 @@ export default function Dashboard() {
                     <span className="font-semibold">
                       {categoryViewMode === 'percentage'
                         ? `${item.value.toFixed(1)}%`
-                        : `$${item.value.toLocaleString()}`
+                        : `$${item.value.toFixed(2)}`
                       }
                     </span>
                   </div>
