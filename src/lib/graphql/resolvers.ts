@@ -1225,7 +1225,7 @@ export const resolvers = {
       { fileContent, accountId, statementType }: {
         fileContent: string;
         accountId: string;
-        statementType: 'CHASE_CREDIT' | 'CHASE_CHECKING' | 'CHASE_PERSONAL_SAVINGS' | 'CHASE_BUSINESS_SAVINGS' | 'CAPITAL_ONE_SAVINGS';
+        statementType: 'CHASE_CREDIT' | 'CHASE_CHECKING' | 'CHASE_PERSONAL_SAVINGS' | 'CHASE_BUSINESS_SAVINGS' | 'CAPITAL_ONE_SAVINGS' | 'APPLE_CARD';
       },
       context: any
     ) => {
@@ -1309,7 +1309,7 @@ export const resolvers = {
 
         // Only validate $0 balance for non-credit card statements
         // Credit cards can legitimately have $0 balance when paid off
-        if (endingBalance === 0 && transactions.length > 0 && statementType !== 'CHASE_CREDIT') {
+        if (endingBalance === 0 && transactions.length > 0 && statementType !== 'CHASE_CREDIT' && statementType !== 'APPLE_CARD') {
           throw new Error(
             'Parser error: Statement ending balance is $0 but transactions were found. ' +
             'This likely means you selected the wrong statement type. ' +

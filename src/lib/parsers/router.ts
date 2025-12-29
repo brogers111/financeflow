@@ -4,13 +4,15 @@ import { parseChaseSavings } from './chase-personal-savings';
 import { parseChaseCreditCard } from './chase-credit-card';
 import { parseChaseBusinessSavings } from './chase-business-savings';
 import { parseCapitalOneSavings } from './capital-one-savings';
+import { parseAppleCard } from './apple-card';
 
-export type AccountType = 
+export type AccountType =
   | 'CHASE_CHECKING'
   | 'CHASE_PERSONAL_SAVINGS'
   | 'CHASE_CREDIT'
   | 'CHASE_BUSINESS_SAVINGS'
-  | 'CAPITAL_ONE_SAVINGS';
+  | 'CAPITAL_ONE_SAVINGS'
+  | 'APPLE_CARD';
 
 export async function parseStatement(
   buffer: Buffer,
@@ -27,6 +29,8 @@ export async function parseStatement(
       return parseChaseBusinessSavings(buffer);
     case 'CAPITAL_ONE_SAVINGS':
       return parseCapitalOneSavings(buffer);
+    case 'APPLE_CARD':
+      return parseAppleCard(buffer);
     default:
       throw new Error(`Unsupported account type: ${accountType}`);
   }

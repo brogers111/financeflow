@@ -54,6 +54,7 @@ export const typeDefs = gql`
     CHASE_PERSONAL_SAVINGS
     CHASE_BUSINESS_SAVINGS
     CAPITAL_ONE_SAVINGS
+    APPLE_CARD
   }
 
   type Category {

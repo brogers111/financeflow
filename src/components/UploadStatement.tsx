@@ -6,12 +6,13 @@ import Link from 'next/link';
 import { UPLOAD_STATEMENT } from '@/lib/graphql/queries';
 import { GET_ACCOUNTS } from '@/lib/graphql/queries';
 
-type StatementType = 
+type StatementType =
   | 'CHASE_CHECKING'
   | 'CHASE_PERSONAL_SAVINGS'
   | 'CHASE_CREDIT'
   | 'CHASE_BUSINESS_SAVINGS'
-  | 'CAPITAL_ONE_SAVINGS';
+  | 'CAPITAL_ONE_SAVINGS'
+  | 'APPLE_CARD';
 
 export default function UploadStatement() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -179,6 +180,7 @@ export default function UploadStatement() {
               <option value="CHASE_CREDIT">Chase - Credit Card</option>
               <option value="CHASE_BUSINESS_SAVINGS">Chase - Business Savings</option>
               <option value="CAPITAL_ONE_SAVINGS">Capital One - Savings</option>
+              <option value="APPLE_CARD">Apple Card</option>
             </select>
           </div>
 
