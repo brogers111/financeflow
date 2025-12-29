@@ -108,7 +108,7 @@ function parseTransactions(text: string): ParsedTransaction[] {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    
+
     // Match date at start - but must have day number
     const dateMatch = line.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})\s+/);
     if (!dateMatch) continue;
@@ -133,6 +133,22 @@ function parseTransactions(text: string): ParsedTransaction[] {
 
     const date = new Date(year, month, parseInt(day));
 
+    // Check if description is on previous line
+    // Capital One sometimes puts description on line before date
+    let previousLineDesc = '';
+    if (i > 0) {
+      const prevLine = lines[i - 1].trim();
+      // Skip if it looks like a reference ID (all caps and/or numbers)
+      const looksLikeReferenceId = prevLine.match(/^[A-Z0-9]+$/);
+      // If previous line doesn't start with a date and isn't a header/balance line, it's likely a description
+      if (!prevLine.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d/) &&
+          !prevLine.match(/Opening Balance|Closing Balance|Interest Rate Change|DATE|DESCRIPTION|CATEGORY|AMOUNT|BALANCE/i) &&
+          !looksLikeReferenceId &&
+          prevLine.length > 0) {
+        previousLineDesc = prevLine;
+      }
+    }
+
     // Check if amount/balance are on next line
     let fullLine = line;
     let amountOnNextLine = false;
@@ -142,6 +158,22 @@ function parseTransactions(text: string): ParsedTransaction[] {
       if (nextLine.match(/^[-+]\s*\$/)) {
         fullLine += ' ' + nextLine;
         amountOnNextLine = true;
+      }
+    }
+
+    // Check if there's additional description on the line after next
+    let additionalDesc = '';
+    if (i + 2 < lines.length) {
+      const lineAfterNext = lines[i + 2].trim();
+      // If it's not a date line and not a header, it might be additional description
+      // BUT skip if it looks like a reference ID (all caps, numbers, short length)
+      const looksLikeReferenceId = lineAfterNext.match(/^[A-Z0-9]+$/);
+      if (!lineAfterNext.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d/) &&
+          !lineAfterNext.match(/Opening Balance|Closing Balance|Interest Rate Change|DATE|DESCRIPTION|CATEGORY|AMOUNT|BALANCE|Fees Summary|Page \d/i) &&
+          !looksLikeReferenceId &&
+          lineAfterNext.length > 0 &&
+          lineAfterNext.length < 50) { // Reasonable description length
+        additionalDesc = lineAfterNext;
       }
     }
 
@@ -202,12 +234,28 @@ function parseTransactions(text: string): ParsedTransaction[] {
     }
 
     let description = tokens.slice(2, descEndIndex).join(' ');
-    
+
     // Clean up description (do this AFTER removing category):
     // 1. Remove trailing +/- signs
     description = description.replace(/\s*[+-]\s*$/, '').trim();
     // 2. Remove any remaining Debit/Credit words
     description = description.replace(/\s*(Debit|Credit)\s*$/i, '').trim();
+
+    // Prepend previous line description if it exists
+    if (previousLineDesc) {
+      description = previousLineDesc + ' ' + description;
+    }
+
+    // Append additional description if it exists
+    if (additionalDesc) {
+      description = description + ' ' + additionalDesc;
+    }
+
+    // Remove trailing dash and everything after it (reference IDs)
+    description = description.replace(/\s+-\s*.*$/, '').trim();
+
+    // Final cleanup: trim and remove extra spaces
+    description = description.replace(/\s+/g, ' ').trim();
 
     // Classify transaction type
     const descUpper = description.toUpperCase();
