@@ -102,7 +102,10 @@ function parseTransactions(text: string): ParsedTransaction[] {
 
   const lines = text.split('\n');
 
-  for (const line of lines) {
+  for (let line of lines) {
+    // Trim whitespace to handle leading spaces
+    line = line.trim();
+
     // Must start with MM/DD
     if (!line.match(/^\d{2}\/\d{2}/)) continue;
 
